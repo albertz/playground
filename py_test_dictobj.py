@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# http://stackoverflow.com/questions/6305267/python-inconsistence-in-the-way-you-define-the-function-setattr
+
 class Foo1(dict):
 	def __getattr__(self, key): return self[key]
 	def __setattr__(self, key, value): self[key] = value
