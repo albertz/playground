@@ -1,3 +1,6 @@
+// http://forums.libsdl.org/viewtopic.php?p=31258
+// http://hg.libsdl.org/SDL_image/rev/5953114c0d27
+
 /*
 g++ sdlimagetest.cpp -framework SDL -framework SDLimage -I /Library/Frameworks/SDL.framework/Headers -I /Library/Frameworks/SDLimage.framework/Headers -o sdlimagetest 
  */
