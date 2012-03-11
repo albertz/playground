@@ -1,0 +1,4 @@
+#undef FOOBAR
+
+int main() {}
+
