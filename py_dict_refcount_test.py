@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# http://bugs.python.org/issue12311
+
 import gc
 #gc.set_debug(gc.DEBUG_LEAK)
 
