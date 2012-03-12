@@ -5,6 +5,7 @@
 
 import dis
 import new
+import unittest
 
 class MissingLabelError(Exception):
     """'goto' without matching 'label'."""
@@ -88,11 +89,9 @@ def goto(fn):
     newfn = new.function(newcode,fn.func_globals)
     return newfn
 
-
-if __name__ == '__main__':
-    
+class GotoTestCase(unittest.TestCase):
     @goto
-    def test1(n):
+    def functionWithGoto(self, n):
 
         s = 0
 
@@ -104,5 +103,10 @@ if __name__ == '__main__':
         n -= 1
 
         goto .myLoop
+    
+    def testFunctionWithGoto(self):
+        self.assertEqual(self.functionWithGoto(10), 55);
 
-    print "test:", test1(10), "should be:", 55
+
+if __name__ == '__main__':
+    unittest.main()
