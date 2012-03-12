@@ -1,5 +1,7 @@
 # background: http://stackoverflow.com/questions/6959360/goto-in-python
 # code from here: http://code.activestate.com/recipes/576944-the-goto-decorator/
+# by Carl Cerecke
+# Licensed under the MIT License
 
 import dis
 import new
