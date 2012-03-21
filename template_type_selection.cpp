@@ -52,36 +52,36 @@ template<> struct GetType<CustomVar::Ref> {
 	static const type& constRef(const type& v) { return v; }
 };
 
-struct X {
-	template<typename T>
-	struct CustomVarWeakRefType {
-		typedef CustomVar::WeakRef type;
-		static const ScriptVarType_t value = SVT_CustomWeakRefToStatic;
-		static CustomVar::Ref defaultValue() { return T().getRefCopy(); }
-		static CustomVar::WeakRef constRef(const T& v) { return v.thisRef.obj; }
-	};
-	
-	struct StringType : GetType<std::string> {};
-	
-	template<typename T>
-	static CustomVarWeakRefType<T>* selectType(const CustomVar&) { return NULL; }
 
-	template<typename T>
-	static GetType<T>* selectType(const T&) { return NULL; }
+template<typename T>
+struct CustomVarWeakRefType {
+	typedef CustomVar::WeakRef type;
+	static const ScriptVarType_t value = SVT_CustomWeakRefToStatic;
+	static CustomVar::Ref defaultValue() { return T().getRefCopy(); }
+	static CustomVar::WeakRef constRef(const T& v) { return v.thisRef.obj; }
+};
+template<typename T>
+static CustomVarWeakRefType<T>* selectType(const CustomVar&) { return NULL; }
 
-	static StringType* selectType(const char*) { return NULL; }
-	
+struct StringType : GetType<std::string> {};
+static StringType* selectType(const char*) { return NULL; }
+static StringType* selectType(char[]) { return NULL; }
+
+template<typename T>
+static GetType<T>* selectType(const T&) { return NULL; }
+
+
+template<typename T>
+struct SelectType {
+	typedef BOOST_TYPEOF(*selectType(*(T*)NULL)) type;
 };
 
-template <typename T1, typename T2>
-struct Y {
-	
-};
+template<typename T> struct GetType : SelectType<T>::type {};
+
 
 template<typename T>
 void dump(const T& v) {
-	cout << X::selectType(v)->constRef(v) << endl;
-	///cout << GetType<T>::constRef(v)	<< endl;
+	cout << GetType<T>::constRef(v)	<< endl;
 }
 
 int main() {
