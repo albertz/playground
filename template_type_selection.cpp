@@ -1,5 +1,8 @@
 #include <stdint.h>
 #include <string>
+#include <iostream>
+#include <boost/typeof/typeof.hpp>
+using namespace std;
 
 struct Color{};
 struct CVec{};
@@ -49,28 +52,36 @@ template<> struct GetType<CustomVar::Ref> {
 	static const type& constRef(const type& v) { return v; }
 };
 
-template<> struct GetType<const char*> : GetType<std::string> {};
-template<> struct GetType<char[]> : GetType<std::string> {};
-
-template<bool> struct GetType_BaseCustomVar;
-template<> struct GetType_BaseCustomVar<true> {
+struct X {
 	template<typename T>
-	struct Type {
+	struct CustomVarWeakRefType {
 		typedef CustomVar::WeakRef type;
 		static const ScriptVarType_t value = SVT_CustomWeakRefToStatic;
-		// Note that this returns a Ref, i.e. SVT_CUSTOM.
 		static CustomVar::Ref defaultValue() { return T().getRefCopy(); }
 		static CustomVar::WeakRef constRef(const T& v) { return v.thisRef.obj; }
 	};
+	
+	struct StringType : GetType<std::string> {};
+	
+	template<typename T>
+	static CustomVarWeakRefType<T>* selectType(const CustomVar&) { return NULL; }
+
+	template<typename T>
+	static GetType<T>* selectType(const T&) { return NULL; }
+
+	static StringType* selectType(const char*) { return NULL; }
+	
 };
 
-
-#include <iostream>
-using namespace std;
+template <typename T1, typename T2>
+struct Y {
+	
+};
 
 template<typename T>
 void dump(const T& v) {
-	cout << GetType<T>::constRef(v)	<< endl;
+	cout << X::selectType(v)->constRef(v) << endl;
+	///cout << GetType<T>::constRef(v)	<< endl;
 }
 
 int main() {
