@@ -60,19 +60,20 @@ struct CustomVarWeakRefType {
 	static CustomVar::Ref defaultValue() { return T().getRefCopy(); }
 	static CustomVar::WeakRef constRef(const T& v) { return v.thisRef.obj; }
 };
-template<typename T>
-static CustomVarWeakRefType<T>* selectType(const CustomVar&) { return NULL; }
 
 struct StringType : GetType<std::string> {};
-static StringType* selectType(const char*) { return NULL; }
-static StringType* selectType(char[]) { return NULL; }
-
-template<typename T>
-static GetType<T>* selectType(const T&) { return NULL; }
-
 
 template<typename T>
 struct SelectType {
+	template<typename A>
+	static CustomVarWeakRefType<A>* selectType(const CustomVar&) { return NULL; }
+
+	static StringType* selectType(const char*) { return NULL; }
+	static StringType* selectType(char[]) { return NULL; }
+
+	template<typename A>
+	static GetType<A>* selectType(const A&) { return NULL; }
+
 	typedef BOOST_TYPEOF(*selectType(*(T*)NULL)) type;
 };
 
