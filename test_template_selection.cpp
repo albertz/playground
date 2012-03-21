@@ -34,6 +34,19 @@ struct ScriptVar_t {
 };
 
 template<typename T>
+T _CastScriptVarConst(const ScriptVar_t& s, T*, typename boost::enable_if_c<(GetType<T>::value < SVT_BASEOBJ), T>::type*) {
+	return (T) s;
+}
+
+template<typename T>
+T _CastScriptVarConst(const ScriptVar_t& s, T*, typename boost::enable_if_c<boost::is_base_of<CustomVar,T>::value, T>::type*) {
+	return *s.as<T>();
+}
+
+template<typename T> T CastScriptVarConst(const ScriptVar_t& s) { return _CastScriptVarConst(s, (T*)NULL, (T*)NULL); }
+
+/*
+template<typename T>
 typename boost::enable_if_c<(GetType<T>::value < SVT_BASEOBJ), T>::type
 CastScriptVarConst(const ScriptVar_t& s) {
     return (T) s;
@@ -45,6 +58,7 @@ typename boost::enable_if_c<!(GetType<T>::value < SVT_BASEOBJ)
 CastScriptVarConst(const ScriptVar_t& s) {
     return *s.as<T>();
 }
+*/
 
 /*
 template<typename T> T CastScriptVarConst(const ScriptVar_t& s);
