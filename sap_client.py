@@ -3,6 +3,7 @@
 # Session Announcement Protocol client
 
 import socket, struct
+from pprint import pprint
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -88,13 +89,29 @@ class SAPPacket:
 		if mediaAddr and mediaPort:
 			self.Media = {}
 			self.Media["Sender"] = self.Payload.s
-			self.Media["Playgroup"] = self.Payload.a.get("x-plgroup")
+			self.Media["Playgroup"] = self.Payload.a.get("x-plgroup", "")
 			self.Media["Addr"] = "udp://@" + mediaAddr + ":" + mediaPort
-		
-while True:
-	data, addr = sock.recvfrom(1024)
-	#print "received:", data, addr
-	p = SAPPacket(data,addr)
-	if hasattr(p, "Media"):
-		print p.Media
-		
+
+playgroups = {}
+count = 0
+
+try:
+	while True:
+		data, addr = sock.recvfrom(1024)
+		#print "received:", data, addr
+		p = SAPPacket(data,addr)
+		if hasattr(p, "Media"):
+			senders = playgroups.get(p.Media["Playgroup"], {})		
+			playgroups[p.Media["Playgroup"]] = senders
+			if p.Media["Sender"] not in senders:
+				count += 1
+				print count, p.Media
+			elif senders[p.Media["Sender"]] != p.Media["Addr"]:
+				print count, p.Media
+			senders[p.Media["Sender"]] = p.Media["Addr"]
+
+except KeyboardInterrupt:
+	print
+	print "---"
+	pprint(playgroups)
+	
