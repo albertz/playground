@@ -1,6 +1,8 @@
 #!/usr/bin/ruby
 # -*- coding: utf-8 -*-
 
+# https://github.com/mxcl/homebrew/issues/11816
+
 HOMEBREW_BREW_FILE = ENV['HOMEBREW_BREW_FILE'] = File.expand_path("/usr/local/bin/brew")
 
 require 'pathname'
