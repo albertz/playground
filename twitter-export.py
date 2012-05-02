@@ -19,6 +19,7 @@ def getXml(url):
 			open_req = urlopen(req)
 			content = open_req.read()
 			content_type = open_req.headers.get('content-type')
+			break
 		except HTTPError, e:
 			print e
 			if e.code in (502,503): # bad gateway, Service Unavailable. happens if overloaded
@@ -30,6 +31,7 @@ def getXml(url):
 				time.sleep(60 * 60)
 				continue
 			raise e
+		assert False
 	assert "xml" in content_type
 	soup = BeautifulSoup.BeautifulSoup(content)
 	return soup
