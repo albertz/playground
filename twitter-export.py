@@ -73,20 +73,25 @@ def formatDate(t):
 	
 # log is dict: (date, id) -> tweet, date as in formatDate
 
-DataCount = 500
+DataCount = 1000
 
 from itertools import *
 for pageNum in count(1):
 	print "> page", pageNum
 	data = getXml("https://twitter.com/statuses/user_timeline/%s.xml?page=%i&count=%i" % (twitterUser, pageNum, DataCount))
-	if not data.statuses:
-		print "** finished"
-		break
-	
+
+	statuses = []	
 	for s in data.statuses.childGenerator():
 		if isinstance(s, (str,unicode)): continue
 		assert isinstance(s, BeautifulSoup.Tag)
 		assert s.name == "status"
+		statuses += [s]
+
+	if not statuses:
+		print "** finished"
+		break
+		
+	for s in statuses:
 		tweetId = long(s.id.text)
 		tweetDate = formatDate(time.strptime(s.created_at.text, "%a %b %d %H:%M:%S +0000 %Y"))
 		tweet = log.setdefault((tweetDate, tweetId), {})
@@ -95,5 +100,10 @@ for pageNum in count(1):
 		tweet["text"] = s.find("text").text
 		tweetGeo = s.find("georss:polygon")
 		tweet["geo"] = tweetGeo.text if tweetGeo else None
+		if s.in_reply_to_status_id.text:
+			retweetFrom = tweet.setdefault("retweeted-from", {})
+			retweetFrom["status-id"] = long(s.in_reply_to_status_id.text)
+			retweetFrom["user-id"] = long(s.in_reply_to_user_id.text)
+			retweetFrom["user-name"] = s.in_reply_to_screen_name.text
 		saveLog()
 		
