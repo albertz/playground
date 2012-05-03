@@ -11,6 +11,7 @@ twitterUser = "albertzeyer"
 import time, os, sys
 import BeautifulSoup
 from urllib2 import Request, HTTPError, URLError, urlopen
+from urlparse import urlparse
 
 def getXml(url):
 	while True:
@@ -39,13 +40,18 @@ def getXml(url):
 def resolveShortlink(url):
 	tries = 0
 	RetriesMax = 10
+	origDomain = urlparse(url).hostname
 	while True:
 		tries += 1
 		try:
-			req = Request(url)
+			req = Request(url, headers={"User-Agent":"Twitter-export"})
 			open_req = urlopen(req)
 			return open_req.geturl()
 		except HTTPError, e:
+			if origDomain != urlparse(e.geturl()).hostname:
+				# it might be that the shortlink resolved to some 404 or so.
+				# but it resolved, we are at a different domain, so just return it.
+				return e.geturl()
 			if tries > RetriesMax: raise e
 			if e.code == 429: # too many requests
 				time.sleep(1)
@@ -107,7 +113,6 @@ def linksInText(s):
 			continue
 
 def updateTweet(tweet):
-	from urlparse import urlparse
 	for l in linksInText(tweet["text"]):
 		parsedUrl = urlparse(l)
 		if parsedUrl.hostname in ShortlinkDomains:
