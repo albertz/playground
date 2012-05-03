@@ -86,8 +86,8 @@ def updateTweetFromSource(tweet, s):
 def updateTweet(tweet):
 	pass
 
-SkipOldWebupdate = False
-DataCount = 1000
+SkipOldWebupdate = True
+DataCount = 200
 
 from itertools import *
 for pageNum in count(1):
