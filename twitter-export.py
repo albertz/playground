@@ -73,6 +73,20 @@ def formatDate(t):
 	
 # log is dict: (date, id) -> tweet, date as in formatDate
 
+def updateTweetFromSource(tweet, s):
+	tweet["text"] = s.find("text").text
+	tweetGeo = s.find("georss:polygon")
+	tweet["geo"] = tweetGeo.text if tweetGeo else None
+	if s.in_reply_to_status_id.text:
+		retweetFrom = tweet.setdefault("retweeted-from", {})
+		retweetFrom["status-id"] = long(s.in_reply_to_status_id.text)
+		retweetFrom["user-id"] = long(s.in_reply_to_user_id.text)
+		retweetFrom["user-name"] = s.in_reply_to_screen_name.text
+
+def updateTweet(tweet):
+	pass
+
+SkipOldWebupdate = False
 DataCount = 1000
 
 from itertools import *
@@ -94,16 +108,19 @@ for pageNum in count(1):
 	for s in statuses:
 		tweetId = long(s.id.text)
 		tweetDate = formatDate(time.strptime(s.created_at.text, "%a %b %d %H:%M:%S +0000 %Y"))
-		tweet = log.setdefault((tweetDate, tweetId), {})
+		tweetKey = (tweetDate, tweetId)
+		if SkipOldWebupdate and tweetKey in log:
+			print "** hit old entry, finished"
+			pageNum = None
+			break
+		tweet = log.setdefault(tweetKey, {})
 		tweet["id"] = tweetId
 		tweet["date"] = tweetDate
-		tweet["text"] = s.find("text").text
-		tweetGeo = s.find("georss:polygon")
-		tweet["geo"] = tweetGeo.text if tweetGeo else None
-		if s.in_reply_to_status_id.text:
-			retweetFrom = tweet.setdefault("retweeted-from", {})
-			retweetFrom["status-id"] = long(s.in_reply_to_status_id.text)
-			retweetFrom["user-id"] = long(s.in_reply_to_user_id.text)
-			retweetFrom["user-name"] = s.in_reply_to_screen_name.text
+		updateTweetFromSource(tweet, s)
+		updateTweet(tweet)
 		saveLog()
-		
+	if not pageNum: break
+
+for tweet in log.itervalues():
+	updateTweet(tweet)
+saveLog()
