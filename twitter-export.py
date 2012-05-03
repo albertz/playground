@@ -10,7 +10,7 @@ twitterUser = "albertzeyer"
 
 import time, os, sys
 import BeautifulSoup
-from urllib2 import Request, HTTPError, URLError, urlopen
+from urllib2 import Request, HTTPError, URLError, urlopen, build_opener
 from urlparse import urlparse
 
 def getXml(url):
@@ -41,11 +41,18 @@ def resolveShortlink(url):
 	tries = 0
 	RetriesMax = 10
 	origDomain = urlparse(url).hostname
+	opener = build_opener()
+	lastUrl = {}
+	orig_open = opener.open
+	def wrap_open(url, *args, **kwargs):
+		lastUrl["url"] = url.get_full_url()
+		return orig_open(url, *args, **kwargs)
+	opener.open = wrap_open
 	while True:
 		tries += 1
 		try:
 			req = Request(url, headers={"User-Agent":"Twitter-export"})
-			open_req = urlopen(req)
+			open_req = opener.open(req)
 			return open_req.geturl()
 		except HTTPError, e:
 			if origDomain != urlparse(e.geturl()).hostname:
@@ -57,7 +64,12 @@ def resolveShortlink(url):
 				time.sleep(1)
 				continue
 			raise e
-
+		except URLError, e:
+			# maybe we got a strange error while opening the redirect
+			if origDomain != urlparse(lastUrl["url"]).hostname:
+				return lastUrl["url"]
+			raise e
+		
 mydir = os.path.dirname(__file__)
 LogFile = mydir + "/twitter.log"
 print "logfile:", LogFile
@@ -122,8 +134,9 @@ def updateTweet(tweet):
 			tweet["text"] = tweet["text"].replace(l, resolvedUrl)
 
 for tweet in log.itervalues():
+	old = str(tweet)
 	updateTweet(tweet)
-	saveLog()
+	if str(tweet) != old: saveLog()
 
 SkipOldWebupdate = True
 DataCount = 200
