@@ -36,6 +36,22 @@ def getXml(url):
 	soup = BeautifulSoup.BeautifulSoup(content)
 	return soup
 
+def resolveShortlink(url):
+	tries = 0
+	RetriesMax = 10
+	while True:
+		tries += 1
+		try:
+			req = Request(url)
+			open_req = urlopen(req)
+			return open_req.geturl()
+		except HTTPError, e:
+			if tries > RetriesMax: raise e
+			if e.code == 429: # too many requests
+				time.sleep(1)
+				continue
+			raise e
+
 mydir = os.path.dirname(__file__)
 LogFile = mydir + "/twitter.log"
 print "logfile:", LogFile
@@ -83,8 +99,26 @@ def updateTweetFromSource(tweet, s):
 		retweetFrom["user-id"] = long(s.in_reply_to_user_id.text)
 		retweetFrom["user-name"] = s.in_reply_to_screen_name.text
 
+ShortlinkDomains = ["bit.ly", "goo.gl", "youtu.be", "t.co"]
+def linksInText(s):
+	for part in s.split():
+		if part.startswith("http://") or part.startswith("https://"):
+			yield part
+			continue
+
 def updateTweet(tweet):
-	pass
+	from urlparse import urlparse
+	for l in linksInText(tweet["text"]):
+		parsedUrl = urlparse(l)
+		if parsedUrl.hostname in ShortlinkDomains:
+			print "resolved", l, "->",
+			resolvedUrl = resolveShortlink(l)
+			print resolvedUrl
+			tweet["text"] = tweet["text"].replace(l, resolvedUrl)
+
+for tweet in log.itervalues():
+	updateTweet(tweet)
+	saveLog()
 
 SkipOldWebupdate = True
 DataCount = 200
@@ -120,7 +154,3 @@ for pageNum in count(1):
 		updateTweet(tweet)
 		saveLog()
 	if not pageNum: break
-
-for tweet in log.itervalues():
-	updateTweet(tweet)
-saveLog()
