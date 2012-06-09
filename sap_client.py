@@ -32,6 +32,7 @@ sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(addr) 
 
 class SDP:
 	def __init__(self, data):
+		self._data = data
 		self.a = {}
 		for l in data.splitlines():
 			if len(l) <= 2: continue
@@ -48,7 +49,9 @@ class SDP:
 				setattr(self, attr, value)
 	def get(self, attr, default = None):
 		return getattr(self, attr, default)
-		
+	def __repr__(self):
+		return "SDP('" + self._data + "')"
+
 class SAPPacket:
 	def __init__(self, data, addr):
 		header1 = ord(data[0])
