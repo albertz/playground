@@ -2,6 +2,9 @@
 
 # Session Announcement Protocol client
 
+import better_exchook
+better_exchook.install()
+
 import socket, struct
 from pprint import pprint
 
