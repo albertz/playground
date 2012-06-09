@@ -87,7 +87,10 @@ class SAPPacket:
 		self.PayloadData = data
 		self.Payload = SDP(data)
 		
-		mediaAddr = self.Payload.c.split()[-1].split("/")[0]
+		try:
+			mediaAddr = self.Payload.c.split()[-1].split("/")[0]
+		except:
+			mediaAddr = None
 		try:
 			mediaPort = self.Payload.m.split()[1]
 		except:
