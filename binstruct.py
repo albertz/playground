@@ -1,5 +1,7 @@
 # binstruct - binary structure serialization
-# code by Albert Zeyer, www.az2000.de, 2012-06-10
+# ------------------------------------------
+# https://github.com/albertz/binstruct/,
+# code by Albert Zeyer, www.az2000.de, 2012-06-10,
 # code under BSD
 
 # I wanted sth as simple as Python repr or JSON, but:
@@ -7,22 +9,26 @@
 #  - very simple format
 #  - very very big data should be possible
 #  - searching through the file should be fast
+
 # Where the first 2 points were so important for me that
 # I implemented this format.
 
 # Some related formats and the reasons they weren't good
 # enough for me.
+
 # BSON:
 #  - keys in structs are only C-strings. I want
 #    any possible data here.
 #  - already too complicated
+
 # Bencode:
 #  - too restricted, too less formats
+
 # OGDL:
 #  - too simple
 # ...
 
-# ------- This format. ------------
+### This format.
 
 FILESIGNATURE = "BINSTRUCT.1\x00"
 class FormatError(Exception): pass
@@ -206,12 +212,13 @@ def dictDecode(stream):
 
 # Variants. Bytesize + type-ID-byte + data.
 # Type-IDs:
-#  1: list
-#  2: dict
-#  3: bool
-#  4: int
-#  5: float
-#  6: str
+# * 1: list
+# * 2: dict
+# * 3: bool
+# * 4: int
+# * 5: float
+# * 6: str
+
 # None has no type-ID. It is just bytesize=0.
 
 def prefixWithSize(data):
@@ -255,6 +262,8 @@ def varDecode(stream):
 	if type == 5: return floatDecode(stream)
 	if type == 6: return strDecode(stream)
 	raise FormatError("type %i unknown" % type)
+
+### Additional functions
 
 # File IO
 
