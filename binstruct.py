@@ -166,6 +166,8 @@ def strEncode(s):
 	return intEncode(len(s)) + s
 
 def strDecode(stream):
+	if isinstance(stream, array): stream = stream.tostring()
+	if isinstance(stream, str): stream = StringIO(stream)
 	strLen = intDecode(stream)
 	return stream.read(strLen)
 
@@ -259,10 +261,106 @@ def varDecode(stream):
 def write(file, v):
 	if isinstance(file, (str,unicode)): file = open(file, "wb")
 	file.write(FILESIGNATURE)
-	file.write(varEncode(v))
-	
+	file.write(varEncode(v).tostring())
+	return file
+
 def read(file):
 	if isinstance(file, (str,unicode)): file = open(file, "b")
 	sig = file.read(len(FILESIGNATURE))
 	if sig != FILESIGNATURE: raise FormatError("file signature wrong")
 	return varDecode(file)
+
+# Encryption / decryption. Authorization
+
+def randomString(l):
+	import random
+	return ''.join(chr(random.randint(0, 0xFF)) for i in range(l))
+
+def genkeypair():
+	from Crypto.PublicKey import RSA
+	key = RSA.generate(2048)
+	pubkey = key.publickey().exportKey("DER")
+	privkey = key.exportKey("DER")
+	return (pubkey,privkey)
+	
+def encrypt(v, encrypt_rsapubkey, sign_rsaprivkey=None):
+	from Crypto.PublicKey import RSA
+	from Crypto.Cipher import PKCS1_OAEP
+	from Crypto.Cipher import AES
+	from Crypto.Signature import PKCS1_PSS
+	from Crypto.Hash import SHA512
+	encrypt_rsapubkey = RSA.importKey(encrypt_rsapubkey)
+	rsa = PKCS1_OAEP.new(encrypt_rsapubkey)
+	aeskey = randomString(32)
+	iv = randomString(16)
+	aes = AES.new(aeskey, AES.MODE_CBC, iv)
+	data = write(StringIO(), v).getvalue()
+	data += "\x00" * (-len(data) % 16)
+	out = strEncode(rsa.encrypt(aeskey + iv))
+	encryptedData = aes.encrypt(data)
+	if sign_rsaprivkey:
+		sign_rsaprivkey = RSA.importKey(sign_rsaprivkey)
+		pss = PKCS1_PSS.new(sign_rsaprivkey)
+		h = SHA512.new()
+		#h.update(encryptedData)
+		sign = pss.sign(h)
+		out += strEncode(sign)
+	else:
+		out += strEncode("")
+	out += array("B", encryptedData)		
+	return out
+
+def decrypt(stream, decrypt_rsaprivkey, verifysign_rsapubkey=None):
+	if isinstance(stream, array): stream = stream.tostring()
+	if isinstance(stream, str): stream = StringIO(stream)
+	from Crypto.PublicKey import RSA
+	from Crypto.Cipher import PKCS1_OAEP
+	from Crypto.Cipher import AES
+	from Crypto.Signature import PKCS1_PSS
+	from Crypto.Hash import SHA512
+	decrypt_rsaprivkey = RSA.importKey(decrypt_rsaprivkey)
+	rsa = PKCS1_OAEP.new(decrypt_rsaprivkey)
+	aesdata = strDecode(stream)
+	aesdata = rsa.decrypt(aesdata)
+	aeskey = aesdata[0:32]
+	iv = aesdata[32:]
+	sign = strDecode(stream)
+	h = SHA512.new()
+	aes = AES.new(aeskey, AES.MODE_CBC, iv)
+	class Stream:
+		buffer = []
+		def read1(self):
+			if len(self.buffer) == 0:
+				nextIn = stream.read(16)
+				#h.update(nextIn)
+				self.buffer += list(aes.decrypt(nextIn))
+			return self.buffer.pop(0)
+		def read(self, n):
+			return "".join([self.read1() for i in range(n)])
+		def __repr__(self):
+			return "<Stream(%r,%r)>" % (stream,"".join(self.buffer))
+	v = read(Stream())
+	if verifysign_rsapubkey:
+		if not sign: raise FormatError("signature missing")
+		verifysign_rsapubkey = RSA.importKey(verifysign_rsapubkey)
+		pss = PKCS1_PSS.new(verifysign_rsapubkey)
+		if not pss.verify(h, sign): raise FormatError("signature is not authentic")
+	return v
+
+# Some tests.
+
+def test_crypto():
+	v = {"hello":"world"}
+	pub1,priv1 = genkeypair()
+	pub2,priv2 = genkeypair()
+	pub3,priv3 = genkeypair()
+	encrypted_signed = encrypt(v, pub1, priv2)
+	decrypted1 = decrypt(encrypted_signed, priv1)
+	decrypted2 = decrypt(encrypted_signed, priv1, pub2)
+	assert v == decrypted1
+	assert v == decrypted2
+	try:
+		decrypt(encrypted_signed, priv1, pub3)
+		assert False, "signature wrongly assumed authentic"
+	except: pass
+
