@@ -311,7 +311,7 @@ def encrypt(v, encrypt_rsapubkey, sign_rsaprivkey=None):
 		sign_rsaprivkey = RSA.importKey(sign_rsaprivkey)
 		pss = PKCS1_PSS.new(sign_rsaprivkey)
 		h = SHA512.new()
-		#h.update(encryptedData)
+		h.update(encryptedData)
 		sign = pss.sign(h)
 		out += strEncode(sign)
 	else:
@@ -341,7 +341,7 @@ def decrypt(stream, decrypt_rsaprivkey, verifysign_rsapubkey=None):
 		def read1(self):
 			if len(self.buffer) == 0:
 				nextIn = stream.read(16)
-				#h.update(nextIn)
+				h.update(nextIn)
 				self.buffer += list(aes.decrypt(nextIn))
 			return self.buffer.pop(0)
 		def read(self, n):
