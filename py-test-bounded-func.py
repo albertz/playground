@@ -3,6 +3,7 @@
 # discussion: http://stackoverflow.com/questions/11036815/implicitely-bound-callable-objects-to-instance
 
 import itertools
+import random
 
 def bound(f):
 	def dummy(*args, **kwargs):
@@ -13,16 +14,32 @@ class LFSeq: # lazy infinite sequence with new elements from func
 	def __init__(self, func):
 		self.evaluated = []
 		self.func = func
+
+	def fillUpToLen(self, n):
+		self.evaluated += [self.func() for i in range(len(self.evaluated), n)]
+		
 	@bound
 	class __iter__:
 		def __init__(self, seq):
 			self.index = 0
 			self.seq = seq
 		def next(self):
-			if self.index >= len(self.seq.evaluated):
-				self.seq.evaluated += [self.seq.func()]
 			self.index += 1
-			return self.seq.evaluated[self.index - 1]
+			return self.seq[self.index]
+
+	def __getitem__(self, i):
+		self.fillUpToLen(i + 1)
+		return self.evaluated[i]
+
+	def __getslice__(self, i, k):
+		assert k is not None, "inf not supported here"
+		if i is None: i = 0
+		assert i >= 0, "LFSeq has no len"
+		assert k >= 0, "LFSeq has no len"
+		self.fillUpToLen(k)
+		return self.evaluated[i:k]
+		
+LRndSeq = lambda: LFSeq(lambda: chr(random.randint(0,255)))
 
 def test():
 	f = itertools.count(0).next	
@@ -36,5 +53,10 @@ def test():
 	for c in range(10):
 		print next(i)
 		
+def test2():
+	s = LRndSeq()
+	print repr("".join(s[:10]))
+	
 if __name__ == '__main__':
 	test()
+	test2()
