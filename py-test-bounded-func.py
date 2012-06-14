@@ -48,7 +48,7 @@ class LList: # lazy list
 		self.base = base
 		self.op = op
 	def __add__(self, other):
-		return LList((self.base, other), lambda x: itertools.chain(*x))
+		return LList((self, other), lambda x: itertools.chain(*x))
 	def __iter__(self):
 		return self.op(self.base)
 	def __str__(self):
@@ -62,6 +62,13 @@ class LList: # lazy list
 			if i == start: tmp = v
 			if i > start: tmp += v
 		return tmp
+
+def commonStrLen(*args):
+	c = 0
+	for cs in itertools.izip(*args):
+		if min(cs) != max(cs): break
+		c += 1
+	return c
 	
 def test():
 	f = itertools.count(0).next	
@@ -86,8 +93,17 @@ def test3():
 	print longDevId
 	print repr(longDevId[:100])
 	print repr(longDevId[:100])
+
+def test4():
+	from sha import sha
+	key = "foo"
+	longDevId1 = LList("dev-" + sha(key).hexdigest()) + "-" + LRndSeq()
+	longDevId2 = "dev-" + sha(key).hexdigest() + "-bla"
+	print commonStrLen(longDevId1, longDevId2)
 	
 if __name__ == '__main__':
 	test()
 	test2()
 	test3()
+	test4()
+	
