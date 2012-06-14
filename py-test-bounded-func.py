@@ -18,6 +18,8 @@ class LFSeq: # lazy infinite sequence with new elements from func
 	def fillUpToLen(self, n):
 		self.evaluated += [self.func() for i in range(len(self.evaluated), n)]
 		
+	# nicer, as suggested on SO, would be a generator because Python bounds that correctly
+	# this is just for demonstration, though...
 	@bound
 	class __iter__:
 		def __init__(self, seq):
@@ -41,6 +43,26 @@ class LFSeq: # lazy infinite sequence with new elements from func
 		
 LRndSeq = lambda: LFSeq(lambda: chr(random.randint(0,255)))
 
+class LList: # lazy list
+	def __init__(self, base, op=iter):
+		self.base = base
+		self.op = op
+	def __add__(self, other):
+		return LList((self.base, other), lambda x: itertools.chain(*x))
+	def __iter__(self):
+		return self.op(self.base)
+	def __str__(self):
+		return "llist(%s,%s)" % (self.base, self.op)
+	def __getslice__(self, start, end):
+		# slow dummy implementation
+		if start is None: start = 0
+		tmp = None
+		for i, v in itertools.izip(itertools.count(0), iter(self)):
+			if i >= end: break
+			if i == start: tmp = v
+			if i > start: tmp += v
+		return tmp
+	
 def test():
 	f = itertools.count(0).next	
 	s = LFSeq(f)
@@ -57,6 +79,15 @@ def test2():
 	s = LRndSeq()
 	print repr("".join(s[:10]))
 	
+def test3():
+	from sha import sha
+	key = "foo"
+	longDevId = LList("dev-" + sha(key).hexdigest()) + LRndSeq()
+	print longDevId
+	print repr(longDevId[:100])
+	print repr(longDevId[:100])
+	
 if __name__ == '__main__':
 	test()
 	test2()
+	test3()
