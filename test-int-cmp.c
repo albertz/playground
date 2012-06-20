@@ -1,5 +1,7 @@
 // discussion: http://stackoverflow.com/questions/11129368/strange-c-integer-inequality-comparison-result
 
+// In Python-2.7.3 getargs.c:convertsimple, I actually got hit by this bug.
+
 #include <limits.h>
 #include <stdio.h>
 int main() {
