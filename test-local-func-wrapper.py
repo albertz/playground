@@ -2,11 +2,17 @@
 
 class Bar:
 	def __init__(self):
-		for fn in ["open","openW","remove","mkdir","exists","isdir","listdir"]:
-			print "register", fn
+		def get_func_wrapper(fn):
 			def func_wrapper(filename):
 				print "called func wrapper", fn, filename
-			setattr(self, fn, func_wrapper)
+			return func_wrapper
+		
+		for fn in ["open","openW","remove","mkdir","exists","isdir","listdir"]:
+			print "register", fn
+			#def func_wrapper(filename):
+			#	print "called func wrapper", fn, filename
+
+			setattr(self, fn, get_func_wrapper(fn))
 			func_wrapper = None
 
 bar = Bar()
