@@ -28,3 +28,25 @@ b = B()
 print "b.x:", b.x
 print b.__class__.x
 
+
+# ---
+
+class initBy(property):
+	def __init__(self, initFunc):
+		property.__init__(self, fget = self.fget)
+		self.initFunc = initFunc
+	def fget(self, inst):
+		if hasattr(self, "value"): return self.value
+		self.value = self.initFunc()
+		return self.value
+
+def initFuncTest():
+	print "initFuncTest"
+	return "x"
+	
+class C:
+	x = initBy(initFuncTest)
+
+c = C()
+print "c.x:", c.x
+print "c.x:", c.x
