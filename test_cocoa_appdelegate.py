@@ -11,14 +11,13 @@ def setupWindow():
 		NSResizableWindowMask,
 		NSBackingStoreBuffered, False)
 	w.setTitle_("Hello world")
+	w.setReleasedWhenClosed_(False) # PyObjC will do the releasing when the Python var goes out of scope
 
 	w.display()
 	w.orderFrontRegardless()
 	w.makeMainWindow()
 
-	# This crashes?
-	#app.delegate().mainWindow = w
-	w.retain()
+	app.delegate().mainWindow = w
 
 	return w
 
