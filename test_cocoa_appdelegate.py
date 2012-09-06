@@ -16,7 +16,9 @@ def setupWindow():
 	w.orderFrontRegardless()
 	w.makeMainWindow()
 
-	app.delegate()._mainWindow = w
+	# This crashes?
+	#app.delegate().mainWindow = w
+	w.retain()
 
 	return w
 
