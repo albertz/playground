@@ -4,9 +4,10 @@
 
 print "mod: start"
 
-if True: # check if we should skip module loading here
+def breakModule():
 	import inspect
 	frame = inspect.currentframe()
+	frame = frame.f_back # manipulate the caller frame
 	code = frame.f_code
 	
 	import ctypes
@@ -15,13 +16,16 @@ if True: # check if we should skip module loading here
 	
 	import dis
 	
-	while True:
-		targetjumpptr = len(code.co_code) - 4 # LOAD_CONST+RETURN_VALUE at end
-		iptr = frame.f_lasti
-		
-		codestr = ctypes.pythonapi.PyString_AsString(id(code.co_code))
-		codestr[iptr] = chr(dis.opmap["JUMP_ABSOLUTE"])
-		codestr[iptr+1] = chr(targetjumpptr & 255)
-		codestr[iptr+2] = chr(targetjumpptr >> 8)
+	targetjumpptr = len(code.co_code) - 4 # LOAD_CONST+RETURN_VALUE at end
+	iptr = frame.f_lasti + 3 # this is a funccall, so advance by 3
+	
+	codestr = ctypes.pythonapi.PyString_AsString(id(code.co_code))
+	codestr[iptr] = chr(dis.opmap["JUMP_ABSOLUTE"])
+	codestr[iptr+1] = chr(targetjumpptr & 255)
+	codestr[iptr+2] = chr(targetjumpptr >> 8)
+	
 
+if True: # check if we should skip module loading here
+	breakModule()
+	
 print "mod: after early exit"
