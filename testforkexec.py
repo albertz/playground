@@ -15,9 +15,12 @@ if "--fork" in sys.argv:
 	print "read:", unpickler.load()
 	sys.exit(0)
 
-readend,writeend = os.pipe()
-readend = os.fdopen(readend, "r")
-writeend = os.fdopen(writeend, "w")
+def pipeOpen():
+	readend,writeend = os.pipe()
+	readend = os.fdopen(readend, "r")
+	writeend = os.fdopen(writeend, "w")
+	return readend,writeend
+readend,writeend = pipeOpen()
 pid = os.fork()
 
 if pid == 0: # child
