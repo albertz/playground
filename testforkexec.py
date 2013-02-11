@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys, os
+import pickle
 
 print sys.argv, os.getpid()
 
@@ -9,8 +10,9 @@ if "--fork" in sys.argv:
 	argidx = sys.argv.index("--fork")
 	readend = int(sys.argv[argidx + 1])
 	readend = os.fdopen(readend, "r")
+	unpickler = pickle.Unpickler(readend)
 	
-	print "read:", readend.read()
+	print "read:", unpickler.load()
 	sys.exit(0)
 
 readend,writeend = os.pipe()
@@ -26,6 +28,7 @@ if pid == 0: # child
 else: # parent
 	readend.close()
 	
-	writeend.write("foo")
+	pickler = pickle.Pickler(writeend)
+	pickler.dump("foo")
 	print "parent"
 	
