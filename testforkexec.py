@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, os
+import sys, os, time
 import pickle
 
 print sys.argv, os.getpid()
@@ -8,11 +8,14 @@ print sys.argv, os.getpid()
 if "--fork" in sys.argv:
 	print "in fork"
 	argidx = sys.argv.index("--fork")
-	readend = int(sys.argv[argidx + 1])
+	writeend = int(sys.argv[argidx + 1])
+	writeend = os.fdopen(writeend, "w")
+	readend = int(sys.argv[argidx + 2])
 	readend = os.fdopen(readend, "r")
 	unpickler = pickle.Unpickler(readend)
 	
 	print "read:", unpickler.load()
+	time.sleep(1)
 	sys.exit(0)
 
 def pipeOpen():
@@ -20,18 +23,27 @@ def pipeOpen():
 	readend = os.fdopen(readend, "r")
 	writeend = os.fdopen(writeend, "w")
 	return readend,writeend
-readend,writeend = pipeOpen()
+pipe_c2p = pipeOpen()
+pipe_p2c = pipeOpen()
 pid = os.fork()
 
 if pid == 0: # child
-	writeend.close()
+	pipe_c2p[0].close()
+	pipe_p2c[1].close()
 	print "child", os.getpid()
-	os.execv(sys.argv[0], sys.argv + ["--fork", str(readend.fileno())])
+	os.execv(sys.argv[0], sys.argv + [
+		"--fork",
+		str(pipe_c2p[1].fileno()),
+		str(pipe_p2c[0].fileno())
+		])
 	
 else: # parent
-	readend.close()
+	pipe_c2p[1].close()
+	pipe_p2c[0].close()
 	
-	pickler = pickle.Pickler(writeend)
+	pickler = pickle.Pickler(pipe_p2c[1])
 	pickler.dump("foo")
+	pipe_p2c[1].flush()
 	print "parent"
+	time.sleep(1)
 	
