@@ -41,7 +41,8 @@ else: # parent
 	pipe_c2p[1].close()
 	pipe_p2c[0].close()
 	
-	pickler = pickle.Pickler(pipe_p2c[1])
+	time.sleep(1)
+	pickler = pickle.Pickler(pipe_p2c[1], protocol=pickle.HIGHEST_PROTOCOL)
 	pickler.dump("foo")
 	pipe_p2c[1].flush()
 	print "parent"
