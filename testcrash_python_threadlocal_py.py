@@ -1,10 +1,4 @@
 
-try:
-	import faulthandler
-	faulthandler.enable(all_threads=True)
-except ImportError:
-	print "note: faulthandler module not available"
-
 import testcrash_python_threadlocal
 Test = testcrash_python_threadlocal.Test
 
@@ -40,12 +34,9 @@ L = _L()
 
 def setLocal(): getattr(L, "test")
 
-def dummy(c, w1, w2):
+def dummy(w):
 	setLocal()
-	for i in range(c):
-		time.sleep(w1)
-		setLocal()
-	time.sleep(w2)
+	time.sleep(w)
 
 def dummy2():
 	setLocal()
@@ -57,27 +48,11 @@ def startThread(f):
 	t.daemon = True
 	t.start()
 
-for i in range(1):
-	#startThread(lambda: dummy(100, 0.001, 0.5))
-	#startThread(lambda: dummy(100, 0.001, 0))
-	#startThread(lambda: dummy(100, 0.001, 1))
-	#startThread(lambda: dummy(100, 0.00001, 0))
-	#startThread(lambda: dummy(10, 0.05, 1))
-	startThread(lambda: dummy(0, 0, 0.1))
-	startThread(lambda: dummy(0, 0, 2))
-	startThread(dummy2)
-	time.sleep(0.001)
+startThread(lambda: dummy(0.1))
+startThread(lambda: dummy(2))
+startThread(dummy2)
+time.sleep(0.001)
 
 time.sleep(1)
-def remove():
-	#setLocal()
-	time.sleep(0.5)
-	L.l = None
-startThread(remove)
+L.l = None
 
-# fun
-#try: os.kill(0, signal.SIGINT)
-#except KeyboardInterrupt: pass
-
-time.sleep(3)
-sys.exit()
