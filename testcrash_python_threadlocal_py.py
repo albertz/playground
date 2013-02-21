@@ -1,4 +1,10 @@
 
+try:
+	import faulthandler
+	faulthandler.enable(all_threads=True)
+except ImportError:
+	print "note: faulthandler module not available"
+
 import testcrash_python_threadlocal
 Test = testcrash_python_threadlocal.Test
 
