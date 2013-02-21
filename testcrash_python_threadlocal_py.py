@@ -13,12 +13,17 @@ from threading import Thread, local
 
 class _L:
 	l = None
+	
+	@property
+	def test(self):
+		if not self.l: self.l = local()
+		if not getattr(self.l, "test", None):
+			self.l.test = Test()
+		return self.l.test
+	
 L = _L()
 
-def setLocal():
-	if not L.l: L.l = local()
-	if not getattr(L.l, "test", None):
-		L.l.test = Test()
+def setLocal(): getattr(L, "test")
 
 def dummy(c, w1, w2):
 	for i in range(c):
@@ -31,7 +36,6 @@ def startThread(f):
 	t.daemon = True
 	t.start()
 
-#setLocal()
 startThread(lambda: dummy(100, 0.001, 0.5))
 startThread(lambda: dummy(100, 0.001, 2))
 startThread(lambda: dummy(10, 0.05, 1))
