@@ -6,6 +6,7 @@ EnableWorkaround = False
 
 import sys, os, time, signal
 from threading import Thread, local, RLock
+from weakref import ref
 
 class _L:	
 	def __init__(self):
@@ -13,16 +14,20 @@ class _L:
 		self.Test = Test
 	
 		if EnableWorkaround:
+			self.refs = set()
 			self.lock = RLock()
 			class Guard:
 				def __init__(gself):
 					with self.lock:
 						gself.test = Test()
+						self.refs.add(ref(gself))
+						assert ref(gself) in self.refs
 				def __del__(gself):
 					with self.lock:
 						gself.test = None
+						self.refs.discard(ref(gself))
 			self.Test = Guard
-			
+	
 	@property
 	def test(self):
 		if not self.l: self.l = local()
@@ -30,6 +35,16 @@ class _L:
 			self.l.test = self.Test()
 		return self.l.test
 	
+	def reset(self):
+		self.l = None
+		
+		if EnableWorkaround:
+			with self.lock:
+				for g in self.refs:
+					g = g()
+					if not g: continue
+					g.test = None
+
 L = _L()
 
 def setLocal(): getattr(L, "test")
@@ -51,8 +66,6 @@ def startThread(f):
 startThread(lambda: dummy(0.1))
 startThread(lambda: dummy(2))
 startThread(dummy2)
-time.sleep(0.001)
 
 time.sleep(1)
-L.l = None
-
+L.reset()
