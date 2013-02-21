@@ -5,12 +5,28 @@
 #include <Python.h>
 #include <unistd.h>
 
+#include <execinfo.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void print_backtrace(int start, int limit) {
+	void* callstack[128];
+	int i, frames = backtrace(callstack, 128);
+	char** strs = backtrace_symbols(callstack, frames);
+	if(frames > limit) frames = limit;
+	for (i = start; i < frames; ++i) {
+		printf("%s\n", strs[i]);
+	}
+	free(strs);
+}
+
 static
 void test_dealloc(PyObject* obj) {
 	printf("test_dealloc\n");
+	print_backtrace(1, 128);
 	
 	Py_BEGIN_ALLOW_THREADS
-	usleep(1000 * 1000 * 1);
+	usleep(1000 * 1000 * 3);
 	Py_END_ALLOW_THREADS
 
 	Py_TYPE(obj)->tp_free(obj);
