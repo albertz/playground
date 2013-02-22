@@ -1,6 +1,7 @@
 // compile:
-// gcc -c testcrash_python_threadlocal.c -I /System/Library/Frameworks/Python.framework/Headers/
-// libtool -dynamic -o testcrash_python_threadlocal.so testcrash_python_threadlocal.o -framework Python -lc
+// Mac:
+// gcc -c testcrash_python_threadlocal.c -I /System/Library/Frameworks/Python.framework/Headers/ # or different header path
+// libtool -dynamic -o testcrash_python_threadlocal.so testcrash_python_threadlocal.o -lc -undefined dynamic_lookup
 
 #include <Python.h>
 #include <unistd.h>
