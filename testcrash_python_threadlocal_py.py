@@ -36,6 +36,7 @@ class _L:
 		return self.l.test
 	
 	def reset(self):
+		print "reset now"
 		self.l = None
 		
 		if EnableWorkaround:
@@ -53,7 +54,8 @@ def dummy(w):
 	setLocal()
 	time.sleep(w)
 
-def dummy2():
+def dummy2(w):
+	time.sleep(w)
 	setLocal()
 	while True:
 		time.sleep(0.1)
@@ -63,9 +65,11 @@ def startThread(f):
 	t.daemon = True
 	t.start()
 
-startThread(lambda: dummy(0.1))
+setLocal()
+startThread(lambda: dummy(0.5))
 startThread(lambda: dummy(2))
-startThread(dummy2)
+startThread(lambda: dummy2(0))
 
 time.sleep(1)
 L.reset()
+

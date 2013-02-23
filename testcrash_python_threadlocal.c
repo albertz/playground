@@ -8,12 +8,13 @@
 
 static
 void test_dealloc(PyObject* obj) {
-	printf("test_dealloc\n");
+	printf("test_dealloc %p\n", obj);
 	
 	Py_BEGIN_ALLOW_THREADS
 	usleep(1000 * 1000 * 3);
 	Py_END_ALLOW_THREADS
 
+	printf("test_dealloc end %p\n", obj);
 	Py_TYPE(obj)->tp_free(obj);
 }
 
