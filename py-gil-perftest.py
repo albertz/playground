@@ -34,5 +34,15 @@ def timefunc(funcname):
 timefunc("serial")
 timefunc("threaded")
 
+# my results (MacBook Pro Early 2011, 2 GHz i7, 4 cores + HT):
+#   CPython 2.7.5:
+#     15.8614599705
+#     23.1555030346
+#   CPython 3.3.2:
+#     19.368003961000795
+#     20.278744241000823     
+#   PyPy 2.0.0:
+#     0.240994930267
+#     0.622744083405     
 
 
