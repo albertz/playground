@@ -354,6 +354,7 @@ int main() {
     print_perf("rand_mat_mul", tmin);
 */
 
+    /*
     // printfd
     tmin = INFINITY;
     for (int i=0; i<NITER; ++i) {
@@ -363,6 +364,7 @@ int main() {
         if (t < tmin) tmin = t;
     }
     print_perf("printfd", tmin);
+*/
 
     return 0;
 }
