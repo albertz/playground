@@ -236,14 +236,19 @@ int main() {
     double t, tmin;
 
     // fib(20)
-    assert(fib(20) == 6765);
+    //assert(fib(20) == 6765);
+    printf("hi\n");
+    t = clock_now();
     int f = 0;
     tmin = INFINITY;
     for (int i=0; i<NITER; ++i) {
-        t = clock_now();
-        f += fib(20);
+	printf("run %i, %f\n", i, clock_now()-t);
+	t = clock_now();
+        f += fib(40);
         t = clock_now()-t;
+	printf("%i %f\n", f, t);
         if (t < tmin) tmin = t;
+	t = clock_now();
     }
     print_perf("fib", tmin);
 
