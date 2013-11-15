@@ -1,14 +1,22 @@
 #include <complex.h>
+#include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <assert.h>
+#include <math.h>
 
 #define DSFMT_MEXP 19937
-#include "perf.h"
-#include "../../../deps/random/randmtzig.c"
+//#include "../../../deps/random/randmtzig.c"
 
+/*
 double *myrand(int n) {
     double *d = (double *)malloc(n*sizeof(double));
     dsfmt_gv_fill_array_close_open(d, n);
     return d;
 }
+*/
 
 #define NITER 5
 
@@ -48,11 +56,13 @@ double *ones(int m, int n) {
     return a;
 }
 
+/*
 double *matmul_aat(int n, double *b) {
     double *c = (double *) malloc(n*n*sizeof(double));
     cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, 1.0, b, n, b, n, 0.0, c, n);
     return c;
 }
+*/
 
 int mandel(double complex z) {
     int maxiter = 80;
@@ -121,6 +131,7 @@ double pisum() {
 
 struct double_pair { double s1, s2; };
 
+/*
 struct double_pair randmatstat(int t) {
     int n = 5;
     struct double_pair r;
@@ -204,6 +215,7 @@ double *randmatmul(int n) {
     free(B);
     return C;
 }
+*/
 
 void printfd(int n) {
     FILE *f = fopen("/dev/null", "w");
@@ -219,7 +231,7 @@ void print_perf(const char *name, double t) {
 
 int main() {
     // Initialize RNG
-    dsfmt_gv_init_gen_rand(0);
+    //dsfmt_gv_init_gen_rand(0);
 
     double t, tmin;
 
@@ -235,6 +247,7 @@ int main() {
     }
     print_perf("fib", tmin);
 
+    /*
     // parse_bin
     tmin = INFINITY;
     for (int i=0; i<NITER; ++i) {
@@ -250,6 +263,7 @@ int main() {
         if (t < tmin) tmin = t;
     }
     print_perf("parse_int", tmin);
+*/
 
     // // array constructor
     // tmin = INFINITY;
@@ -288,6 +302,7 @@ int main() {
     assert(mandel_sum == 14791);
     print_perf("mandel", tmin);
 
+    /*
     // sort
     tmin = INFINITY;
     for (int i=0; i<NITER; ++i) {
@@ -299,6 +314,7 @@ int main() {
         if (t < tmin) tmin = t;
     }
     print_perf("quicksort", tmin);
+*/
 
     // pi sum
     double pi;
@@ -312,6 +328,7 @@ int main() {
     assert(fabs(pi-1.644834071848065) < 1e-12);
     print_perf("pi_sum", tmin);
 
+    /*
     // rand mat stat
     struct double_pair r;
     tmin = INFINITY;
@@ -335,6 +352,7 @@ int main() {
         if (t < tmin) tmin = t;
     }
     print_perf("rand_mat_mul", tmin);
+*/
 
     // printfd
     tmin = INFINITY;
@@ -348,3 +366,4 @@ int main() {
 
     return 0;
 }
+

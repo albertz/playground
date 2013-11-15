@@ -320,22 +320,22 @@ end do
 call assert(f == 6765)
 print "('fortran,fib,',f0.6)", tmin*1000._dp / NRUNS
 
-tmin = 1e9_dp
-do i = 1, 5
-    call cpu_time(t1)
-    do k2 = 1, NRUNS
-        do k = 1, 1000
-            call random_number(s1)
-            n = int(s1*huge(n))
-            write(s, '(z0)') n
-            m = parse_int(s(:len_trim(s)), 16)
-            call assert(m == n)
-        end do
-    end do
-    call cpu_time(t2)
-    if (t2-t1 < tmin) tmin = t2-t1
-end do
-print "('fortran,parse_int,',f0.6)", tmin*1000._dp / NRUNS
+!tmin = 1e9_dp
+!do i = 1, 5
+!    call cpu_time(t1)
+!    do k2 = 1, NRUNS
+!        do k = 1, 1000
+!            call random_number(s1)
+!            n = int(s1*huge(n))
+!            write(s, '(z0)') n
+!            m = parse_int(s(:len_trim(s)), 16)
+!            call assert(m == n)
+!        end do
+!    end do
+!    call cpu_time(t2)
+!    if (t2-t1 < tmin) tmin = t2-t1
+!end do
+!print "('fortran,parse_int,',f0.6)", tmin*1000._dp / NRUNS
 
 tmin = 1e9_dp
 do i = 1, 5
@@ -349,19 +349,19 @@ end do
 call assert(f == 14791)
 print "('fortran,mandel,',f0.6)", tmin*1000._dp / NRUNS
 
-tmin = 1e9_dp
-do i = 1, 5
-    call cpu_time(t1)
-    do k = 1, NRUNS
-        allocate(d(5000))
-        call random_number(d)
-        call quicksort(d, 1, size(d))
-        deallocate(d)
-    end do
-    call cpu_time(t2)
-    if (t2-t1 < tmin) tmin = t2-t1
-end do
-print "('fortran,quicksort,',f0.6)", tmin*1000._dp / NRUNS
+!tmin = 1e9_dp
+!do i = 1, 5
+!    call cpu_time(t1)
+!    do k = 1, NRUNS
+!        allocate(d(5000))
+!        call random_number(d)
+!        call quicksort(d, 1, size(d))
+!        deallocate(d)
+!    end do
+!    call cpu_time(t2)
+!    if (t2-t1 < tmin) tmin = t2-t1
+!end do
+!print "('fortran,quicksort,',f0.6)", tmin*1000._dp / NRUNS
 
 tmin = 1e9_dp
 do i = 1, 5
@@ -373,25 +373,25 @@ end do
 call assert(abs(pi - 1.644834071848065_dp) < 1e-6_dp)
 print "('fortran,pi_sum,',f0.6)", tmin*1000
 
-tmin = 1e9_dp
-do i = 1, 5
-    call cpu_time(t1)
-    call randmatstat(1000, s1, s2)
-    call cpu_time(t2)
-    if (t2-t1 < tmin) tmin = t2-t1
-end do
+!tmin = 1e9_dp
+!do i = 1, 5
+!    call cpu_time(t1)
+!    call randmatstat(1000, s1, s2)
+!    call cpu_time(t2)
+!    if (t2-t1 < tmin) tmin = t2-t1
+!end do
 ! call assert(s1 > 0.5_dp .and. s1 < 1)
 ! call assert(s2 > 0.5_dp .and. s2 < 1)
-print "('fortran,rand_mat_stat,',f0.6)", tmin*1000
+!print "('fortran,rand_mat_stat,',f0.6)", tmin*1000
 
-tmin = 1e9_dp
-do i = 1, 5
-    call cpu_time(t1)
-    call randmatmul(1000, C)
-    call assert(C(1, 1) >= 0)
-    call cpu_time(t2)
-    if (t2-t1 < tmin) tmin = t2-t1
-end do
-print "('fortran,rand_mat_mul,',f0.6)", tmin*1000
+!tmin = 1e9_dp
+!do i = 1, 5
+!    call cpu_time(t1)
+!    call randmatmul(1000, C)
+!    call assert(C(1, 1) >= 0)
+!    call cpu_time(t2)
+!    if (t2-t1 < tmin) tmin = t2-t1
+!end do
+!print "('fortran,rand_mat_mul,',f0.6)", tmin*1000
 
 end program
