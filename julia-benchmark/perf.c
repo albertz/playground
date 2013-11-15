@@ -239,12 +239,13 @@ int main() {
     //assert(fib(20) == 6765);
     printf("hi\n");
     t = clock_now();
-    int f = 0;
+    volatile int f = 0;
     tmin = INFINITY;
     for (int i=0; i<NITER; ++i) {
 	printf("run %i, %f\n", i, clock_now()-t);
 	t = clock_now();
-        f += fib(40);
+	volatile int FibArg = 40;
+        f += fib(FibArg);
         t = clock_now()-t;
 	printf("%i %f\n", f, t);
         if (t < tmin) tmin = t;
