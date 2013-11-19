@@ -5,6 +5,9 @@ http://viennacl.sourceforge.net/viennacl-manual-current.pdf
 
 compile:
 c++ viennacl_test.cpp -std=c++11
+
+or:
+c++ -std=c++11 -DVIENNACL_WITH_OPENCL -framework OpenCL viennacl_test.cpp
 */
 
 #include <viennacl/vector.hpp>
