@@ -1,6 +1,7 @@
-
-
 /* 
+ViennaCL
+
+http://viennacl.sourceforge.net/viennacl-manual-current.pdf
 
 compile:
 c++ viennacl_test.cpp
