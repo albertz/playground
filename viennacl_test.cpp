@@ -26,7 +26,8 @@ int main () {
         v (i) = i;
     }
 
+//    std::cout << m * v << std::endl;
     std::cout << prod (m, v) << std::endl;
-    std::cout << prod (v, m) << std::endl;
+//    std::cout << prod (v, m) << std::endl;
 }
 
