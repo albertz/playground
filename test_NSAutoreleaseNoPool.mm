@@ -9,8 +9,6 @@
 #import <string.h>
 #include <assert.h>
 
-typedef void (*NSAutoreleaseNoPoolFunc) (void* obj);
-
 // Adapget from:
 // https://github.com/0xced/iOS-Artwork-Extractor/blob/master/Classes/FindSymbol.c
 // Adapted from MoreAddrToSym / GetFunctionName()
@@ -83,13 +81,13 @@ void *FindSymbol(const struct mach_header *img, const char *symbol)
 	return NULL;
 }
 
-void foo() {
-	NSAutoreleaseNoPoolFunc __NSAutoreleaseNoPool = (NSAutoreleaseNoPoolFunc) dlsym(RTLD_DEFAULT, "__NSAutoreleaseNoPool");
-	
+typedef void (*NSAutoreleaseNoPoolFunc) (void* obj);
+
+void getNSAutoreleaseNoPool() {	
 	const struct mach_header* img = NSAddImage("/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation", NSADDIMAGE_OPTION_NONE);
 	NSAutoreleaseNoPoolFunc f = (NSAutoreleaseNoPoolFunc) FindSymbol((struct mach_header*)img, "___NSAutoreleaseNoPool");
 		
-	printf("func: %p (%p) %p\n", __NSAutoreleaseNoPool, img, f);
+	printf("func: %p\n", f);
 	
 	if(f) {
 		NSObject* foo = [[NSObject alloc] init];
@@ -107,7 +105,7 @@ void bar() {
 }
 
 int main() {
-	foo();
+	getNSAutoreleaseNoPool();
 	bar();
 	return 0;
 }
