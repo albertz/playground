@@ -5,6 +5,22 @@
 //
 // The code can easily be adopted for similar debug hook functions.
 //
+// Sample output:
+//
+//     $ ./a.out
+//     ___NSAutoreleaseNoPool addr: 0x7fff8724bd30
+//     2014-02-18 15:20:09.362 a.out[25277:903] *** __NSAutoreleaseNoPool(): Object 0x7fff71154190 of class NSCFString autoreleased with no pool in place - just leaking
+//     __NSAutoreleaseNoPool backtrace:
+//     backtrace() returned 8 addresses
+//     0   a.out                               0x0000000100007928 _Z15print_backtracev + 40
+//     1   a.out                               0x0000000100007a10 _Z33__NSAutoreleaseNoPool_replacementPv + 48
+//     2   CoreFoundation                      0x00007fff87196e79 _CFAutoreleasePoolAddObject + 649
+//     3   CoreFoundation                      0x00007fff87196be6 -[NSObject(NSObject) autorelease] + 22
+//     4   a.out                               0x00000001000078dd _Z11raiseNoPoolv + 109
+//     5   a.out                               0x0000000100007ac2 main + 18
+//     6   a.out                               0x0000000100001524 start + 52
+//     7   ???                                 0x0000000000000001 0x0 + 1
+//
 // compile:
 // cc -framework CoreFoundation -framework Foundation -Imach_override mach_override/*.c mach_override/libudis86/*.c demo_NSAutoreleaseNoPool.mm
 
@@ -131,6 +147,7 @@ void replaceNSAutoreleaseNoPool() {
 
 id raiseNoPool() {
 	NSString* foo = [[NSString alloc] init];
+	// This will lead to a NSAutoreleaseNoPool() call.
 	return [foo autorelease];
 }
 
