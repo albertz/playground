@@ -126,13 +126,9 @@ id raiseNoPool() {
 	return [foo autorelease];
 }
 
-void bar() {
-	id x = raiseNoPool();
-}
-
 int main() {
 	replaceNSAutoreleaseNoPool();
-	bar();
+	raiseNoPool();
 	return 0;
 }
 
