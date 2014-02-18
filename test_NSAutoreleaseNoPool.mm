@@ -1,5 +1,5 @@
 // compile:
-// c++ -framework CoreFoundation -framework Foundation test_NSAutoreleaseNoPool.mm
+// cc -framework CoreFoundation -framework Foundation -Imach_override mach_override/*.c mach_override/libudis86/*.c test_NSAutoreleaseNoPool.mm
 
 #include <dlfcn.h>
 #include <stdio.h>
@@ -8,6 +8,8 @@
 #import <mach-o/nlist.h>
 #import <string.h>
 #include <assert.h>
+#include <mach_override.h>
+#include <execinfo.h>
 
 // Adapget from:
 // https://github.com/0xced/iOS-Artwork-Extractor/blob/master/Classes/FindSymbol.c
@@ -83,15 +85,39 @@ void *FindSymbol(const struct mach_header *img, const char *symbol)
 
 typedef void (*NSAutoreleaseNoPoolFunc) (void* obj);
 
-void getNSAutoreleaseNoPool() {	
+NSAutoreleaseNoPoolFunc __NSAutoreleaseNoPool_reenter;
+
+void print_backtrace() {
+    void *callstack[128];
+    int framesC = backtrace(callstack, sizeof(callstack));
+    printf("backtrace() returned %d addresses\n", framesC);
+    char** strs = backtrace_symbols(callstack, framesC);
+    for(int i = 0; i < framesC; ++i) {
+        if(strs[i])
+            printf("%s\n", strs[i]);
+        else
+            break;
+    }
+    free(strs);
+}
+
+void __NSAutoreleaseNoPool_replacement(void* obj) {
+	__NSAutoreleaseNoPool_reenter(obj);
+	printf("__NSAutoreleaseNoPool backtrace:\n");
+	print_backtrace();
+}
+
+void replaceNSAutoreleaseNoPool() {	
 	const struct mach_header* img = NSAddImage("/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation", NSADDIMAGE_OPTION_NONE);
 	NSAutoreleaseNoPoolFunc f = (NSAutoreleaseNoPoolFunc) FindSymbol((struct mach_header*)img, "___NSAutoreleaseNoPool");
-		
-	printf("func: %p\n", f);
+	
+	printf("___NSAutoreleaseNoPool addr: %p\n", f);
 	
 	if(f) {
-		NSObject* foo = [[NSObject alloc] init];
-		f(foo);
+		mach_override_ptr(
+			(void*)f,
+			(void*)__NSAutoreleaseNoPool_replacement,
+			(void**)&__NSAutoreleaseNoPool_reenter);
 	}
 }
 
@@ -105,7 +131,7 @@ void bar() {
 }
 
 int main() {
-	getNSAutoreleaseNoPool();
+	replaceNSAutoreleaseNoPool();
 	bar();
 	return 0;
 }
