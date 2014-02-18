@@ -6,4 +6,4 @@
 *.so
 .DS_Store
 .*.swp
-
+*.dSYM
