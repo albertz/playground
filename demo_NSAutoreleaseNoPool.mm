@@ -1,3 +1,10 @@
+// demo_NSAutoreleaseNoPool.mm
+//
+// This is a demonstration to make NSAutoreleaseNoPool more useful. It replaces
+// that function at runtime (via mach_override) and adds a `print_backtrace()` call to it.
+//
+// The code can easily be adopted for similar debug hook functions.
+//
 // compile:
 // cc -framework CoreFoundation -framework Foundation -Imach_override mach_override/*.c mach_override/libudis86/*.c demo_NSAutoreleaseNoPool.mm
 
@@ -11,7 +18,7 @@
 #include <mach_override.h>
 #include <execinfo.h>
 
-// Adapget from:
+// Adapted from:
 // https://github.com/0xced/iOS-Artwork-Extractor/blob/master/Classes/FindSymbol.c
 // Adapted from MoreAddrToSym / GetFunctionName()
 // http://www.opensource.apple.com/source/openmpi/openmpi-8/openmpi/opal/mca/backtrace/darwin/MoreBacktrace/MoreDebugging/MoreAddrToSym.c
@@ -113,6 +120,7 @@ void replaceNSAutoreleaseNoPool() {
 	
 	printf("___NSAutoreleaseNoPool addr: %p\n", f);
 	
+	// Newer MacOSX versions wont have the symbol at all. (I guess it went away with ARC.)
 	if(f) {
 		mach_override_ptr(
 			(void*)f,
