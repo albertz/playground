@@ -1,5 +1,5 @@
 // compile:
-// cc -framework CoreFoundation -framework Foundation -Imach_override mach_override/*.c mach_override/libudis86/*.c test_NSAutoreleaseNoPool.mm
+// cc -framework CoreFoundation -framework Foundation -Imach_override mach_override/*.c mach_override/libudis86/*.c demo_NSAutoreleaseNoPool.mm
 
 #include <dlfcn.h>
 #include <stdio.h>
