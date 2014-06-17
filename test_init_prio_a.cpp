@@ -1,4 +1,4 @@
 #include "test_init_prio.hpp"
 
-int a = 2;
+float a = 2;
 
