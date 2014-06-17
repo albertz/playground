@@ -3,7 +3,7 @@
 
 __attribute__((constructor))
 static void init() {
-	printf("init: %f %f\n", A<float>::a, B::b);
+	printf("init: %i %i\n", a, b);
 }
 
 int main() {}

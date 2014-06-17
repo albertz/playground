@@ -1,4 +1,3 @@
 #include "test_init_prio.hpp"
 
-template<> const float A<float>::a = 2;
-
+int a = 2;
