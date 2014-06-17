@@ -2,6 +2,12 @@
 
 set -e
 CXX=${CXX:-c++}
+LD=$CXX
+if [ "$(uname)" != "Darwin" ]; then
+	LD_START_GROUP=-Wl,-\(
+	LD_END_GROUP=-Wl,-\)
+fi
+
 PREFIX=test_init_prio
 
 for f in a b main; do
@@ -14,6 +20,6 @@ done
 
 exe=${PREFIX}.exe
 objs="${PREFIX}_b.a ${PREFIX}_a.a ${PREFIX}_main.a"
-$CXX -Wl,-\( $objs -Wl,-\) -o $exe
+$CXX $LD_START_GROUP $objs $LD_END_GROUP -o $exe
 
 ./${PREFIX}.exe
