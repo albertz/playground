@@ -1,17 +1,19 @@
 #!/bin/bash
 
+set -e
 CXX=${CXX:-c++}
 PREFIX=test_init_prio
 
-for f in a b main; do
+for f in a b c main; do
 	a=${PREFIX}_$f.a
 	o=${PREFIX}_$f.o
 	cpp=${PREFIX}_$f.cpp
-	$CXX $cpp -c -o $o
+	$CXX -Wall $cpp -c -o $o
 	ar rucs $a $o
 done
 
 exe=${PREFIX}.exe
-$CXX -Wl,-\( ${PREFIX}_b.a ${PREFIX}_a.a ${PREFIX}_main.a -Wl,-\) -o $exe
+objs="${PREFIX}_b.a ${PREFIX}_a.a ${PREFIX}_main.a ${PREFIX}_c.a"
+$CXX -Wl,-\( $objs -Wl,-\) -o $exe
 
 ./${PREFIX}.exe

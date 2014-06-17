@@ -2,7 +2,7 @@
 #include "test_init_prio.hpp"
 
 int main() {
-	printf("%f %f\n", A<float>::a, B::b);
+	printf("main: %f %f %f\n", A<float>::a, B::b, c.c);
 }
 
 

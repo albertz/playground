@@ -6,3 +6,9 @@ struct B {
 	static const float b;
 };
 
+struct C {
+	C();
+	float c;
+};
+
+extern C c;
