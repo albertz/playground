@@ -13,7 +13,7 @@ for f in a b c main; do
 done
 
 exe=${PREFIX}.exe
-objs="${PREFIX}_b.a ${PREFIX}_a.a ${PREFIX}_main.a ${PREFIX}_c.a"
+objs="${PREFIX}_c.a ${PREFIX}_b.a ${PREFIX}_a.a ${PREFIX}_main.a"
 $CXX -Wl,-\( $objs -Wl,-\) -o $exe
 
 ./${PREFIX}.exe
