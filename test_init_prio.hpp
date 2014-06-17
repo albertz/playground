@@ -1,11 +1,8 @@
-template<typename T> struct Type {
-	static const T value;
+template<typename T> struct A {
+	static const T a;
 };
 
 struct B {
 	static const float b;
 };
-
-extern float a;
-extern float b;
 

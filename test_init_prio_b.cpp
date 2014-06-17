@@ -1,5 +1,5 @@
 #include "test_init_prio.hpp"
 
-float b = a;
+const float B::b = A<float>::a;
 
 
