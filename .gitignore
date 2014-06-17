@@ -6,4 +6,5 @@
 *.so
 .DS_Store
 .*.swp
-
+*.exe
+*.a
