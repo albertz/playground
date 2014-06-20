@@ -1,6 +1,8 @@
 #include <iostream>
 using namespace std;
 
+// related question: http://stackoverflow.com/questions/24322386/c-force-constexpr-to-be-evaluated-at-compile-time
+
 template<typename T>
 struct Type {};
 
@@ -22,5 +24,6 @@ int main() {
 	f1(Type<float>::max);
 //	f2(Type<float>::max); // requires symbol
 	
+	if(Type<float>::max < -10) {};
 }
 
