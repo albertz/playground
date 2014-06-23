@@ -1,9 +1,23 @@
 #include <stdio.h>
-#include "test_init_prio.hpp"
+#include "test_constexpr_init_prio.hpp"
+
+__attribute__((noinline))
+static void dump(const int* a, const int* b) {
+	printf("init: %i %i %p\n", *a, *b, a);
+}
 
 __attribute__((constructor))
 static void init() {
-	printf("init: %i %i\n", a, b);
+	dump(&S::a, &S::b);
 }
+
+struct X {
+	X() {
+		dump(&S::a, &S::b);
+	}
+};
+
+__attribute__((init_priority(101)))
+X x;
 
 int main() {}

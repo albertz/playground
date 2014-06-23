@@ -8,18 +8,18 @@ if [ "$(uname)" != "Darwin" ]; then
 	LD_END_GROUP=-Wl,-\)
 fi
 
-PREFIX=test_init_prio
+PREFIX=test_constexpr_init_prio
 
 for f in a b main; do
 	a=${PREFIX}_$f.a
 	o=${PREFIX}_$f.o
 	cpp=${PREFIX}_$f.cpp
-	$CXX -Wall $cpp -c -o $o
+	$CXX -std=c++0x -Wall $cpp -c -o $o
 	ar rucs $a $o
 done
 
 exe=${PREFIX}.exe
-objs="${PREFIX}_b.a ${PREFIX}_a.a ${PREFIX}_main.a"
+objs="${PREFIX}_b.a ${PREFIX}_main.a ${PREFIX}_a.a"
 $CXX $LD_START_GROUP $objs $LD_END_GROUP -o $exe
 
 ./${PREFIX}.exe
