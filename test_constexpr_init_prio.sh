@@ -14,12 +14,12 @@ for f in a b main; do
 	a=${PREFIX}_$f.a
 	o=${PREFIX}_$f.o
 	cpp=${PREFIX}_$f.cpp
-	$CXX -std=c++0x -Wall $cpp -c -o $o
+	$CXX -O0 -std=c++0x -Wall $cpp -c -o $o
 	ar rucs $a $o
 done
 
 exe=${PREFIX}.exe
 objs="${PREFIX}_b.a ${PREFIX}_main.a ${PREFIX}_a.a"
-$CXX $LD_START_GROUP $objs $LD_END_GROUP -o $exe
+$CXX -O0 $LD_START_GROUP $objs $LD_END_GROUP -o $exe
 
 ./${PREFIX}.exe
