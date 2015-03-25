@@ -10,3 +10,4 @@
 *.exe
 *.a
 *.dSYM
+.history*
