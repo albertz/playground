@@ -23,6 +23,20 @@ int main() {
 #define b a
 	cout << a() << " " << b() << endl;
 
+#undef b
+#define b() a()
+#define a() b()
+	cout << a() << " " << b() << endl;
+
+#undef a
+#undef b
+#define a() a()
+	cout << a() << endl;
+
+#undef a
+#define a(x) (a() + x)
+	cout << a(a(0)) << endl;
+
 	return 0;
 }
 
