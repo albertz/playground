@@ -34,7 +34,7 @@ public:
 		// error: within this context
 		// error: cannot convert ‘A<int>::FT A<int>::* {aka int A<int>::*}’ to ‘C<int>::FT* {aka int*}’ in return
 		return &Precursor::x;
-		//return &this->x;
+		//return &this->x;  // this works
 	}
 };
 
