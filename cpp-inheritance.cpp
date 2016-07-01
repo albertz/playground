@@ -4,8 +4,7 @@ using namespace std;
 
 class A {
 protected:
-	typedef int FT;
-	FT x;
+	int x;
 public:
 	A() : x(42) {}
 };
@@ -15,7 +14,6 @@ class B : public A {
 
 class C : public B {
 protected:
-	typedef int FT;
 	typedef B Precursor;
 
 public:
@@ -25,11 +23,11 @@ public:
 		cout << this->x << endl;
 	}
 
-	FT get() {
+	int get() {
 		return Precursor::x;
 	}
 
-	FT* getPtr() {
+	int* getPtr() {
 		// error: ‘A<int>::FT A<int>::x’ is protected
 		// error: within this context
 		// error: cannot convert ‘A<int>::FT A<int>::* {aka int A<int>::*}’ to ‘C<int>::FT* {aka int*}’ in return
