@@ -30,9 +30,9 @@ public:
 	}
 
 	int* getPtr() {
-		// error: ‘A<int>::FT A<int>::x’ is protected
+		// error: ‘int A::x’ is protected
 		// error: within this context
-		// error: cannot convert ‘A<int>::FT A<int>::* {aka int A<int>::*}’ to ‘C<int>::FT* {aka int*}’ in return
+		// error: cannot convert ‘int A::*’ to ‘int*’ in return
 		return &Precursor::x;
 		//return &this->x;  // this works
 	}
