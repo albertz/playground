@@ -7,7 +7,7 @@ import sys
 import better_exchook
 better_exchook.install()
 
-libc_so = {"darwin": "libc.dylib"}[sys.platform]
+libc_so = {"darwin": "libc.dylib", "linux2": ""}[sys.platform]
 libc = ctypes.CDLL(libc_so, use_errno=True, use_last_error=True)
 shm_key_t = ctypes.c_int
 IPC_PRIVATE = 0
