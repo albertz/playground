@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import numpy
+import subprocess
 import ctypes
 import sys
 import better_exchook
@@ -33,35 +34,6 @@ memcpy = libc.memcpy
 memcpy.restype = ctypes.c_void_p
 memcpy.argtypes = (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t)
 
-# PyObject_HEAD expands to:
-#   Py_ssize_t ob_refcnt;
-#   PyTypeObject *ob_type;
-# typedef struct PyArrayObject {
-#     PyObject_HEAD
-#     char *data;
-#     int nd;
-#     npy_intp *dimensions;
-#     npy_intp *strides;
-#     PyObject *base;
-#     PyArray_Descr *descr;
-#     int flags;
-#     PyObject *weakreflist;
-# } PyArrayObject;
-
-class PyArrayObject(ctypes.Structure):
-    _fields_ = [
-        ("ob_refcnt", ctypes.c_ssize_t),
-        ("ob_type", ctypes.c_void_p),
-        ("data", ctypes.c_void_p),
-        ("nd", ctypes.c_int),
-        ("dimensions", ctypes.POINTER(ctypes.c_long)),
-        ("strides", ctypes.POINTER(ctypes.c_long)),
-        ("base", ctypes.c_void_p),
-        ("descr", ctypes.c_void_p),
-        ("flags", ctypes.c_int),
-        ("weakreflist", ctypes.c_void_p)
-    ]
-
 
 class SharedMem:
     def __init__(self, size):
@@ -74,21 +46,65 @@ class SharedMem:
     def remove(self):
         shmdt(self.ptr)
         self.ptr = None
-        shmctl(self.shmid, IPC_RMID)
+        shmctl(self.shmid, IPC_RMID, 0)
         self.shmid = None
 
     def __del__(self):
         self.remove()
 
 
+class SharedMemClient:
+    def __init__(self, size, shmid):
+        self.size = size
+        self.shmid = shmid
+        self.ptr = None
+        assert self.shmid > 0
+        self.ptr = shmat(self.shmid, 0, 0)
+        assert self.ptr
+
+    def remove(self):
+        shmdt(self.ptr)
+        self.ptr = None
+
+    def __del__(self):
+        self.remove()
+
+
 def demo():
+    p = subprocess.Popen([__file__, "--client"], stdin=subprocess.PIPE)
+
     m = numpy.arange(100, dtype="float32").reshape(10, 10)
-    m_ptr = ctypes.addressof(ctypes.py_object(m))
-    m_c = ctypes.cast(m_ptr, ctypes.POINTER(PyArrayObject))
-    print(m_c.value.nd)
+    assert m.itemsize * numpy.prod(m.shape) == m.nbytes
+    mem = SharedMem(m.nbytes)
+    memcpy(mem.ptr, m.ctypes.data, m.nbytes)
+
+    p.stdin.write("%i\n" % mem.size)
+    p.stdin.write("%i\n" % mem.shmid)
+    p.stdin.write("%r\n" % m.__array_interface__)
+    p.wait()
+    print("Done. Return code %i" % p.returncode)
+
+
+def demo_client():
+    size = int(sys.stdin.readline())
+    shmid = int(sys.stdin.readline())
+    array_intf = eval(sys.stdin.readline())
+
+    mem = SharedMemClient(size, shmid)
+    array_intf["data"] = (mem.ptr, False)
+    class A: __array_interface__ = array_intf
+    m2 = numpy.array(A, copy=False)
+    assert not m2.flags.owndata
+
+    m = numpy.arange(100, dtype="float32").reshape(10, 10)
+    assert numpy.isclose(m, m2).all()
+    print("Yup!")
 
 
 if __name__ == "__main__":
-    demo()
+    if sys.argv[1:] == ["--client"]:
+        demo_client()
+    else:
+        demo()
 
 
