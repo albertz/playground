@@ -103,6 +103,9 @@ class SharedMem:
     def __setstate__(self, state):
         self.__init__(**state)
 
+    def __repr__(self):
+        return "<SharedMem shmid=%r size=%r is_creator=%r>" % (self.shmid, self.size, self.is_creator)
+
 
 def next_power_of_two(n):
     return 2 ** ((n - 1).bit_length())
@@ -169,9 +172,11 @@ class SharedNumpyArray:
         self._create_numpy(shape=shape, strides=strides, typestr=typestr)
 
     def _create_numpy(self, shape, strides, typestr):
+        assert self.mem.ptr > 0
         self.shape = shape
         self.strides = strides
         self.typestr = typestr
+        # http://docs.scipy.org/doc/numpy/reference/arrays.interface.html
         array_intf = {
             "data": (self.mem.ptr + self.extra_space, False),
             "shape": shape,
@@ -184,6 +189,7 @@ class SharedNumpyArray:
             __array_interface__ = array_intf
         a = numpy.array(A, copy=False)
         assert not a.flags.owndata
+        assert a.base is A
         self.array = a
 
     def _get_in_use_flag_ref(self):
@@ -197,6 +203,7 @@ class SharedNumpyArray:
         return self._get_in_use_flag_ref().value > 0
 
     def set_unused(self):
+        self.array = None
         if self.mem:
             self._set_is_used(0)
             self.mem.remove()
@@ -209,7 +216,6 @@ class SharedNumpyArray:
         }
 
     def __setstate__(self, state):
-        print("setstate %r" % state)
         self.__init__(**state)
 
     def __del__(self):
@@ -241,6 +247,7 @@ def pickle_shm(s, v):
     if len(v) == 2:
         assert isinstance(v[1], numpy.ndarray)
         shared = SharedNumpyArray.create_copy(v[1])
+        shared.array = None
         v = (v[0], shared)
     pickler = pickle.Pickler(file=s, protocol=-1)
     pickler.dump(v)
@@ -256,7 +263,9 @@ def unpickle(s):
     if len(v) == 2 and isinstance(v[1], SharedNumpyArray):
         a = v[1]
         assert a.array is not None
-        return (v[0], a.array)
+        array = a.array
+        a.array = None
+        return (v[0], array)
     return v
 
 
@@ -275,6 +284,7 @@ def demo():
         assert isinstance(m2, numpy.ndarray)
         assert m.shape == m2.shape
         assert numpy.isclose(m, m2).all()
+        m2 = None
         gc.collect()
     print("Copying done, exiting.")
     pickle(p.stdin, ("exit",))
@@ -299,6 +309,7 @@ def demo_client():
             a = cmd[1]
             assert isinstance(a, numpy.ndarray)
             pickle(out_stream, ("pong", a))
+            cmd, a = None, None
             gc.collect()
         else:
             assert False, "unknown: %r" % cmd
