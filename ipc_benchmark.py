@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import subprocess
 import numpy
 import ctypes
+import ctypes.util
 import atexit
 import gc
 import better_exchook
 better_exchook.install()
 
 
-libc_so = {"darwin": "libc.dylib", "linux2": ""}[sys.platform]
-libc = ctypes.CDLL(libc_so, use_errno=True, use_last_error=True)
+libc_so = ctypes.util.find_library('c')
+libc = ctypes.CDLL(libc_so, use_errno=True)
 shm_key_t = ctypes.c_int
 IPC_PRIVATE = 0
 IPC_RMID = 0
@@ -69,6 +71,13 @@ def check_shmmax():
         print("check_shmmax not implemented for platform %r" % sys.platform)
 
 
+def check_ccall_error(check, f):
+    if not check:
+        errno = ctypes.get_errno()
+        errstr = os.strerror(errno)
+        raise Exception("%s failed with error %i (%s)" % (f, errno, errstr))
+
+
 class SharedMem:
     def __init__(self, size, shmid=None):
         self.size = size
@@ -77,14 +86,16 @@ class SharedMem:
         if shmid is None:
             self.is_creator = True
             self.shmid = shmget(IPC_PRIVATE, self.size, 0o600)
-            assert self.shmid > 0
+            check_ccall_error(self.shmid > 0, "shmget")
+            print("New shmid: %i" % self.shmid)
             atexit.register(self.remove)
         else:
             self.is_creator = False
             self.shmid = shmid
             assert self.shmid > 0
         self.ptr = shmat(self.shmid, 0, 0)
-        assert self.ptr > 0
+        check_ccall_error(self.ptr != ctypes.c_void_p(-1).value, "shmat")
+        check_ccall_error(self.ptr > 0, "shmat")
 
     def remove(self):
         if self.ptr:
@@ -135,7 +146,8 @@ class SharedNumpyArray:
         strides = array_intf["strides"]
         typestr = array_intf["typestr"]
         inst = cls.create_new(shape=shape, strides=strides, typestr=typestr)
-        inst.array[...] = array
+        assert array.nbytes == inst.array.nbytes
+        memcpy(inst.array.ctypes.data, array.ctypes.data, array.nbytes)
         return inst
 
     @classmethod
@@ -270,7 +282,7 @@ def unpickle(s):
 
 
 LoopCount = 10
-MatrixSize = 1000
+MatrixSize = 5000
 
 def demo():
     if pickle is pickle_shm:
@@ -284,8 +296,6 @@ def demo():
         assert isinstance(m2, numpy.ndarray)
         assert m.shape == m2.shape
         assert numpy.isclose(m, m2).all()
-        m2 = None
-        gc.collect()
     print("Copying done, exiting.")
     pickle(p.stdin, ("exit",))
     out, = unpickle(p.stdout)
@@ -309,8 +319,6 @@ def demo_client():
             a = cmd[1]
             assert isinstance(a, numpy.ndarray)
             pickle(out_stream, ("pong", a))
-            cmd, a = None, None
-            gc.collect()
         else:
             assert False, "unknown: %r" % cmd
     print("Exit from client!")
