@@ -25,7 +25,7 @@ def crash():
 #libSegFault = ctypes.CDLL(libfn)
 
 # see signal_handler.c
-lib = ctypes.CDLL("signal_handler.so")
+lib = ctypes.CDLL("./signal_handler.so")
 print(lib)
 
 lib.install_signal_handler.return_type = None

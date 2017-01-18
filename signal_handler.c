@@ -1,5 +1,5 @@
 // compile:
-// cc signal_handler.c -shared -o signal_handler.so
+// cc signal_handler.c -fPIC -shared -o signal_handler.so
 
 #include <stdio.h>
 #include <execinfo.h>
