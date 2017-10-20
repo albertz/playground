@@ -1,4 +1,5 @@
 *.bin
+*.exec
 *.class
 *.pyc
 *.out
