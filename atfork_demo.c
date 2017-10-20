@@ -1,5 +1,7 @@
 /*
 
+See atfork_demo_main.c.
+Compile this:
 gcc -shared -fPIC atfork_demo.c -o atfork_demo1.so
 gcc -shared -fPIC atfork_demo.c -o atfork_demo2.so -lpthread
 

@@ -6,6 +6,7 @@ compile this via:
 gcc atfork_demo_main.c -o atfork_demo_main.exec -ldl
 
 See also atfork_demo.c and atfork_patch.c.
+And atfork_patch_extended.c.
 
 gcc -shared -fPIC atfork_demo.c -o atfork_demo1.so
 gcc -shared -fPIC atfork_demo.c -o atfork_demo2.so -lpthread
@@ -18,7 +19,9 @@ Then set LD_PRELOAD=./atfork_patch.so, and run:
 
 I get:
 
+Register.
 Ignoring pthread_atfork call!
+Register.
 Hello from atfork prepare.
 
 */

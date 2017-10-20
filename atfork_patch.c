@@ -1,6 +1,8 @@
 /*
 
-gcc -shared -O2 -fPIC atfork_patch.c -o atfork_patch.so
+See atfork_demo_main.c.
+Compile this:
+gcc -shared -fPIC atfork_patch.c -o atfork_patch.so
 
 */
 
