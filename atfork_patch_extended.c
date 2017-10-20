@@ -62,7 +62,7 @@ void *dlopen(const char *filename, int flag) {
 
 // Another way to ignore atfork handlers: Override fork.
 pid_t fork(void) {
-  syscall(SYS_clone, SIGCHLD, 0);
+  return syscall(SYS_clone, SIGCHLD, 0);
 }
 
 
