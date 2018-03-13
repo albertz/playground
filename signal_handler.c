@@ -9,7 +9,7 @@
 
 
 
-sig_t old_signal_handler = 0;
+sig_t old_signal_handler[32];
 
 
 void signal_handler(int sig) {
@@ -24,11 +24,13 @@ void signal_handler(int sig) {
   backtrace_symbols_fd(array, size, STDERR_FILENO);
 
   // call previous handler
-  signal(sig, old_signal_handler);
+  signal(sig, old_signal_handler[sig]);
   raise(sig);
 }
 
 void install_signal_handler() {
-  old_signal_handler = signal(SIGSEGV, signal_handler);
+  old_signal_handler[SIGSEGV] = signal(SIGSEGV, signal_handler);
+  old_signal_handler[SIGBUS] = signal(SIGBUS, signal_handler);
+  old_signal_handler[SIGILL] = signal(SIGILL, signal_handler);
 }
 
