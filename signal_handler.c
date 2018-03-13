@@ -32,5 +32,7 @@ void install_signal_handler() {
   old_signal_handler[SIGSEGV] = signal(SIGSEGV, signal_handler);
   old_signal_handler[SIGBUS] = signal(SIGBUS, signal_handler);
   old_signal_handler[SIGILL] = signal(SIGILL, signal_handler);
+  old_signal_handler[SIGABRT] = signal(SIGABRT, signal_handler);
+  old_signal_handler[SIGFPE] = signal(SIGFPE, signal_handler);
 }
 
