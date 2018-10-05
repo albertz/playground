@@ -139,7 +139,6 @@ def test():
     tf.set_random_seed(42)
     src_placeholder = tf.placeholder(tf.float32, (None, seq_len, num_inputs), name="src_placeholder")
     tgt_placeholder = tf.placeholder(tf.float32, (None, seq_len, num_outputs), name="tgt_placeholder")
-    batch_size = tf.shape(src_placeholder)[0]
 
     def make_feed_dict():
       return {
@@ -150,10 +149,8 @@ def test():
     with tf.variable_scope(tf.get_variable_scope()) as scope:
       x = tf.get_variable("b", shape=(seq_len, 1, num_outputs * 2))
       input_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None, num_outputs * 2))
+      # The existence (and non-usage) of the TensorArray unstack triggers the crash.
       input_ta = input_ta.unstack(x)
-      target_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None, num_outputs))
-      target_ta = target_ta.unstack(tf.transpose(tgt_placeholder, [1, 0, 2]))
-      loss_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None,))
       loss = tf.reduce_sum(x ** 2)
     optimizer = tf.train.AdamOptimizer(learning_rate=0.1, epsilon=1e-16, use_locking=False)
     minimize_op = optimizer.minimize(loss)
@@ -168,7 +165,7 @@ def test():
     session.run(tf.global_variables_initializer())
     print('graph size:', session.graph_def.ByteSize())
     print('train')
-    for s in range(10):
+    for s in range(1):
       loss_val, _, _ = session.run([loss, minimize_op, check_op], feed_dict=make_feed_dict())
       print("step %i, loss: %f" % (s, loss_val))
 
