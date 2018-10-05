@@ -143,10 +143,12 @@ fish: Job 1, “python test-tf111-tfshoulduse-c…” terminated by signal SIGSE
 
 """
 
+import sys
 import numpy
 import tensorflow as tf
 from tensorflow.python.ops.nn import rnn_cell
 import contextlib
+import atexit
 import gc
 import faulthandler
 import better_exchook
@@ -210,11 +212,27 @@ def test():
       loss_val, _, _ = session.run([loss, minimize_op, check_op], feed_dict=make_feed_dict())
       print("step %i, loss: %f" % (s, loss_val))
 
+  # Demo.
+  try:
+    raise Exception("foo")
+  except Exception:
+    sys.excepthook(*sys.exc_info())
+
   # This would avoid the crash:
   # gc.collect()
 
 
+def at_exit_handler():
+  print("atexit handler")
+  # Demo:
+  try:
+    raise Exception("foo")
+  except Exception:
+    sys.excepthook(*sys.exc_info())
+
+
 if __name__ == "__main__":
+  atexit.register(at_exit_handler)
   better_exchook.install()
   better_exchook.replace_traceback_format_tb()
   faulthandler.enable()
