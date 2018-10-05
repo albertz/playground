@@ -46,6 +46,30 @@ Current thread 0x00007f22409ff700 (most recent call first):
   File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 60 in __del__
 fish: Job 1, “python test-tf11-tfshoulduse-cr…” terminated by signal SIGSEGV (Address boundary error)
 
+---
+
+or just:
+
+...
+pure virtual method called
+terminate called without an active exception
+Fatal Python error: Aborted
+
+Current thread 0x00007f1fb6d1b700 (most recent call first):
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 2249 in node_def
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 2095 in __str__
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 353 in name
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 614 in __repr__
+  File "/u/zeyer/code/playground/better_exchook.py", line 249 in pretty_print
+  File "/u/zeyer/code/playground/better_exchook.py", line 485 in format_py_obj
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in <lambda>
+  File "/u/zeyer/code/playground/better_exchook.py", line 520 in _trySet
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in format_tb
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 37 in format_list
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 193 in format_stack
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 60 in __del__
+fish: Job 1, “python test-tf111-tfshoulduse-c…” terminated by signal SIGABRT (Abort)
+
 """
 
 import numpy
@@ -97,39 +121,6 @@ def var_creation_scope():
   """
   with tf.control_dependencies(None) as dep:
     yield dep
-
-
-def dot(a, b):
-  """
-  :param tf.Tensor a: shape [...da...,d]
-  :param tf.Tensor b: shape [d,...db...]
-  :return: tensor of shape [...da...,...db...]
-  :rtype: tf.Tensor
-  """
-  with tf.name_scope("dot"):
-    a_ndim = a.get_shape().ndims
-    b_ndim = b.get_shape().ndims
-    assert a_ndim is not None
-    if a_ndim == 0:
-      return tf.scalar_mul(a, b)
-    assert b_ndim is not None
-    if b_ndim == 0:
-      return tf.scalar_mul(b, a)
-    if a_ndim == b_ndim == 1:
-      return tf.reduce_sum(a * b)
-    d = tf.shape(b)[0]
-    assert a_ndim >= 2 and b_ndim >= 2
-    res_shape = None
-    if a_ndim > 2 or b_ndim > 2:
-      res_shape = [tf.shape(a)[i] for i in range(0, a_ndim - 1)] + [tf.shape(b)[i] for i in range(1, b_ndim)]
-    if a_ndim > 2:
-      a = tf.reshape(a, (-1, d))
-    if b_ndim > 2:
-      b = tf.reshape(b, (d, -1))
-    res = tf.matmul(a, b)
-    if a_ndim > 2 or b_ndim > 2:
-      res = tf.reshape(res, res_shape)
-    return res
 
 
 class RHNCell(rnn_cell.RNNCell):
@@ -186,8 +177,7 @@ class RHNCell(rnn_cell.RNNCell):
     assert input_dim is not None, "%r shape unknown" % (x,)
     with var_creation_scope():
       weights = tf.get_variable("W", shape=(input_dim, output_dim))
-    x = dot(x, weights)
-    return x
+    return tf.zeros([tf.shape(x)[i] for i in range(x.get_shape().ndims - 1)] + [output_dim])
 
   def _get_dropout_mask(self):
     if self._dropout_mask is not None:
