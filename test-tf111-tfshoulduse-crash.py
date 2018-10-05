@@ -127,123 +127,6 @@ def make_scope():
       yield session
 
 
-@contextlib.contextmanager
-def var_creation_scope():
-  """
-  If you create a variable inside of a while-loop, you might get the following error:
-    InvalidArgumentError: The node 'while/w/Assign' has inputs from different frames.
-    The input 'while/j' is in frame 'while/while/'. The input 'while/w' is in frame ''.
-  Also see tests/test_TFUtil.py:test_loop_var_creation().
-  Related TF bugs:
-    https://github.com/tensorflow/tensorflow/issues/3114
-    https://github.com/tensorflow/tensorflow/issues/4478
-    https://github.com/tensorflow/tensorflow/issues/8604
-  The solution is to reset the current frame.
-  Resetting all control dependencies has this effect.
-  See also :func:`same_context`
-  """
-  with tf.control_dependencies(None) as dep:
-    yield dep
-
-
-class RHNCell(rnn_cell.RNNCell):
-  """
-  Recurrent Highway Layer.
-  With optional dropout for recurrent state (fixed over all frames - some call this variational).
-
-  References:
-    https://github.com/julian121266/RecurrentHighwayNetworks/
-    https://arxiv.org/abs/1607.03474
-  """
-
-  def __init__(self, num_units, is_training=None, depth=5, dropout=0.0, dropout_seed=None, transform_bias=None,
-               batch_size=None):
-    """
-    :param int num_units:
-    :param bool|tf.Tensor|None is_training:
-    :param int depth:
-    :param float dropout:
-    :param int dropout_seed:
-    :param float|None transform_bias:
-    :param int|tf.Tensor|None batch_size:
-    """
-    super(RHNCell, self).__init__()
-    self._num_units = num_units
-    if is_training is None:
-      is_training = True
-    self.is_training = is_training
-    self.depth = depth
-    self.dropout = dropout
-    if dropout_seed is None:
-      dropout_seed = 13
-    self.dropout_seed = dropout_seed
-    self.transform_bias = transform_bias or 0.0
-    self.batch_size = batch_size
-    self._dropout_mask = None
-
-  @property
-  def output_size(self):
-    return self._num_units
-
-  @property
-  def state_size(self):
-    return self._num_units
-
-  @staticmethod
-  def _linear(x, output_dim):
-    """
-    :param tf.Tensor x:
-    :param int output_dim:
-    :rtype: tf.Tensor
-    """
-    input_dim = x.get_shape().dims[-1].value
-    assert input_dim is not None, "%r shape unknown" % (x,)
-    return tf.zeros([tf.shape(x)[i] for i in range(x.get_shape().ndims - 1)] + [output_dim])
-
-  def get_input_transformed(self, x, batch_dim=None):
-    """
-    :param tf.Tensor x: (time, batch, dim)
-    :return: (time, batch, num_units * 2)
-    :rtype: tf.Tensor
-    """
-    x = self._linear(x, self._num_units * 2)
-    with var_creation_scope():
-      bias = tf.get_variable(
-        "b", shape=(self._num_units * 2,),
-        initializer=tf.constant_initializer(
-          [0.0] * self._num_units + [self.transform_bias] * self._num_units))
-    x += bias
-    return x
-
-  def call(self, inputs, state):
-    """
-    :param tf.Tensor inputs:
-    :param tf.Tensor state:
-    :return: (output, state)
-    :rtype: (tf.Tensor, tf.Tensor)
-    """
-    inputs.set_shape((None, self._num_units * 2))
-    state.set_shape((None, self._num_units))
-
-    # Carry-gate coupled with transform gate: C = 1 - T
-    current_state = state
-    for i in range(self.depth):
-      current_state_masked = current_state
-      with tf.variable_scope('depth_%i' % i):
-        state_transformed = self._linear(current_state_masked, self._num_units * 2)
-      if i == 0:
-        state_transformed += inputs
-      h, t = tf.split(state_transformed, 2, axis=-1)
-      h = tf.tanh(h)
-      t = tf.sigmoid(t)
-      # Simplified equation for better numerical stability.
-      # The current_state here should be without the dropout applied,
-      # because dropout would divide by keep_prop, which can blow up the state.
-      current_state += t * (h - current_state)
-
-    return current_state, current_state
-
-
 def test():
   random = numpy.random.RandomState(seed=1)
   num_inputs = 4
@@ -265,24 +148,13 @@ def test():
       }
 
     with tf.variable_scope(tf.get_variable_scope()) as scope:
-      rhn = RHNCell(num_units=num_outputs, is_training=True, dropout=0.9, dropout_seed=1, batch_size=batch_size)
-      state = rhn.zero_state(batch_size, tf.float32)
-      x = tf.transpose(src_placeholder, [1, 0, 2])
-      x = rhn.get_input_transformed(x)
+      x = tf.get_variable("b", shape=(seq_len, 1, num_outputs * 2))
       input_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None, num_outputs * 2))
       input_ta = input_ta.unstack(x)
       target_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None, num_outputs))
       target_ta = target_ta.unstack(tf.transpose(tgt_placeholder, [1, 0, 2]))
       loss_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None,))
-
-      loss = 0.0
-      for i in range(seq_len):
-        output, state = rhn(inputs=x[i], state=state)
-        frame_loss = tf.reduce_mean(tf.squared_difference(tgt_placeholder[:, i], output), axis=1)
-        # frame_loss = tf.Print(frame_loss, ['frame', i, 'loss', frame_loss, 'SE of', tgt_placeholder[:, i], output])
-        assert frame_loss.get_shape().ndims == 1  # (batch,)
-        loss += tf.reduce_sum(frame_loss)
-      #loss = tf.reduce_sum(tf.get_variable("x", shape=(3, 3)) ** 2)
+      loss = tf.reduce_sum(x ** 2)
     optimizer = tf.train.AdamOptimizer(learning_rate=0.1, epsilon=1e-16, use_locking=False)
     minimize_op = optimizer.minimize(loss)
     check_op = tf.no_op()
@@ -292,7 +164,6 @@ def test():
             tf.trainable_variables() +
             tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES))
     print(train_vars)
-    var_norms = [tf.nn.l2_loss(v) for v in train_vars]
     print('init vars')
     session.run(tf.global_variables_initializer())
     print('graph size:', session.graph_def.ByteSize())
@@ -300,10 +171,6 @@ def test():
     for s in range(10):
       loss_val, _, _ = session.run([loss, minimize_op, check_op], feed_dict=make_feed_dict())
       print("step %i, loss: %f" % (s, loss_val))
-      # var_norm_vals = session.run(var_norms)
-      # print('var norms:')
-      # for (v, x) in zip(train_vars, var_norm_vals):
-      #  print(' ', v, ':', x)
 
 
 if __name__ == "__main__":
