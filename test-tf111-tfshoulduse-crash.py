@@ -1,4 +1,53 @@
 
+"""
+Running this with TF 1.11, Python 3.6.3 on Ubuntu 16.04 results in this crash:
+
+...
+init vars
+graph size: 658062
+train
+step 0, loss: 3.219436
+step 1, loss: 4.317543
+step 2, loss: 3.812533
+step 3, loss: 9.656103
+step 4, loss: 3.692919
+step 5, loss: 3.183093
+step 6, loss: 3.310433
+step 7, loss: 3.173050
+step 8, loss: 2.896871
+step 9, loss: 3.313305
+ERROR:tensorflow:==================================
+Object was never used (type <class 'tensorflow.python.ops.tensor_array_ops.TensorArray'>):
+<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7f21d9740c50>
+If you want to mark it as used call its "mark_used()" method.
+It was originally created here:
+  File "test-tf11-tfshoulduse-crash.py", line 328, in <module>    line: test()    locals:      test = <local> <function test at 0x7f21d9721b70>  File "test-tf11-tfshoulduse-crash.py", line 317, in test    line: print("step %i, loss: %f" % (s, loss_val))    locals:      print = <builtin> <built-in function print>      s = <local> 9      loss_val = <local> 3.3133047  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 189, in wrapped    line: return _add_should_use_warning(fn(*args, **kwargs))    locals:      _add_should_use_warning = <global> <function _add_should_use_warning at 0x7f21e6a5d378>      fn = <local> <function TensorArray.unstack at 0x7f21e6a606a8>      args = <local> (<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7f21e7bae160>, <tf.Tensor '@:0' shape=(?, ?, 6) dtype=float32>)      kwargs = <local> {}
+==================================
+ERROR:tensorflow:==================================
+Object was never used (type <class 'tensorflow.python.ops.tensor_array_ops.TensorArray'>):
+<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7f21e70e35f8>
+If you want to mark it as used call its "mark_used()" method.
+It was originally created here:
+  File "test-tf11-tfshoulduse-crash.py", line 328, in <module>    line: test()    locals:      test = <local> <function test at 0x7f21d9721b70>  File "test-tf11-tfshoulduse-crash.py", line 317, in test    line: print("step %i, loss: %f" % (s, loss_val))    locals:      print = <builtin> <built-in function print>      s = <local> 9      loss_val = <local> 3.3133047  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 189, in wrapped    line: return _add_should_use_warning(fn(*args, **kwargs))    locals:      _add_should_use_warning = <global> <function _add_should_use_warning at 0x7f21e6a5d378>      fn = <local> <function TensorArray.unstack at 0x7f21e6a606a8>      args = <local> (<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7f21e7bae160>, <tf.Tensor '@:0' shape=(?, ?, 6) dtype=float32>)      kwargs = <local> {}  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/ops/tensor_array_ops.py", line 907, in unstack    line: return self._implementation.unstack(value, name=name)    locals:      self = <local> <tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7f21e7bae160>      self._implementation = <local> <tensorflow.python.ops.tensor_array_ops._GraphTensorArray object at 0x7f21d971dcf8>      self._implementation.unstack = <local> <bound method should_use_result.<locals>.wrapped of <tensorflow.python.ops.tensor_array_ops._GraphTensorArray object at 0x7f21d971dcf8>>      value = <local> <tf.Tensor '@:0' shape=(?, ?, 6) dtype=float32>      name = <local> None  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 189, in wrapped    line: return _add_should_use_warning(fn(*args, **kwargs))    locals:      _add_should_use_warning = <global> <function _add_should_use_warning at 0x7f21e6a5d378>      fn = <local> <function _GraphTensorArray.unstack at 0x7f21e6a5dd08>      args = <local> (<tensorflow.python.ops.tensor_array_ops._GraphTensorArray object at 0x7f21d971dcf8>, <tf.Tensor '@:0' shape=(?, ?, 6) dtype=float32>)      kwargs = <local> {'name': None}
+==================================
+Fatal Python error: Segmentation fault
+
+Current thread 0x00007f22409ff700 (most recent call first):
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 1897 in name
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 352 in name
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 614 in __repr__
+  File "/u/zeyer/code/playground/better_exchook.py", line 249 in pretty_print
+  File "/u/zeyer/code/playground/better_exchook.py", line 485 in format_py_obj
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in <lambda>
+  File "/u/zeyer/code/playground/better_exchook.py", line 520 in _trySet
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in format_tb
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 37 in format_list
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 193 in format_stack
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 60 in __del__
+fish: Job 1, “python test-tf11-tfshoulduse-cr…” terminated by signal SIGSEGV (Address boundary error)
+
+"""
+
 import numpy
 import tensorflow as tf
 from tensorflow.python.ops.nn import rnn_cell
