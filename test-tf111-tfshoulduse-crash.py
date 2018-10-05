@@ -99,41 +99,6 @@ def var_creation_scope():
     yield dep
 
 
-def cond(pred, fn1, fn2, name=None):
-  """
-  This is a wrapper around tf.control_flow_ops.cond().
-  This will be a branched execution, i.e. either fn1() or fn2() will be executed,
-  or at least the resulting graph will be evaluated.
-  If pred can is constant at the call, only the corresponding fn will be called.
-  This is similar as the TF internal _smart_cond().
-  And similar as tf.contrib.framework.smart_cond.
-
-  :param tf.Tensor|bool pred:
-  :param ()->(tf.Tensor|list[tf.Tensor]) fn1:
-  :param ()->(tf.Tensor|list[tf.Tensor]) fn2:
-  :param str name:
-  :return: fn1() if pred else fn2()
-  :rtype: tf.Tensor|list[tf.Tensor]
-  """
-  if not callable(fn1):
-    raise TypeError("fn1 must be callable.")
-  if not callable(fn2):
-    raise TypeError("fn2 must be callable.")
-  if pred is True:
-    return fn1()
-  if pred is False:
-    return fn2()
-  from tensorflow.python.framework import tensor_util
-  pred_const = tensor_util.constant_value(pred)
-  if pred_const is not None:
-    if pred_const:
-      return fn1()
-    else:
-      return fn2()
-  from tensorflow.python.ops import control_flow_ops
-  return control_flow_ops.cond(pred, fn1, fn2, name=name)
-
-
 def dot(a, b):
   """
   :param tf.Tensor a: shape [...da...,d]
@@ -243,7 +208,7 @@ class RHNCell(rnn_cell.RNNCell):
         # 0. if [keep_prob, 1.0) and 1. if [1.0, 1.0 + keep_prob)
         binary_tensor = tf.floor(random_tensor)
         return binary_tensor * (1.0 / keep_prob)
-      self._dropout_mask = cond(self.is_training, get_mask, lambda: 1.0)
+      self._dropout_mask = get_mask()
     return self._dropout_mask
 
   def _optional_dropout(self, state):
