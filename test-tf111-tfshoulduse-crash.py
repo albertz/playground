@@ -147,6 +147,7 @@ import numpy
 import tensorflow as tf
 from tensorflow.python.ops.nn import rnn_cell
 import contextlib
+import gc
 import faulthandler
 import better_exchook
 
@@ -161,7 +162,13 @@ def make_scope():
       yield session
 
 
+class Dummy:
+  def __del__(self):
+    print("Dummy Goodbye")
+
+
 def test():
+  dummy = Dummy()
   random = numpy.random.RandomState(seed=1)
   num_inputs = 4
   num_outputs = 3
@@ -203,9 +210,13 @@ def test():
       loss_val, _, _ = session.run([loss, minimize_op, check_op], feed_dict=make_feed_dict())
       print("step %i, loss: %f" % (s, loss_val))
 
+  # This would avoid the crash:
+  # gc.collect()
+
 
 if __name__ == "__main__":
   better_exchook.install()
   better_exchook.replace_traceback_format_tb()
   faulthandler.enable()
   test()
+  print("Exit.")
