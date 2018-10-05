@@ -107,14 +107,48 @@ Current thread 0x00007fbc8958b700 (most recent call first):
   File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 60 in __del__
 fish: Job 1, “python test-tf111-tfshoulduse-c…” terminated by signal SIGABRT (Abort)
 
+---
+
+or:
+
+ERROR:tensorflow:==================================
+Object was never used (type <class 'tensorflow.python.ops.tensor_array_ops.TensorArray'>):
+<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7f297d6eb240>
+If you want to mark it as used call its "mark_used()" method.
+It was originally created here:
+  File "test-tf111-tfshoulduse-crash.py", line 177, in <module>    line: test()    locals:      test = <local> <function test at 0x7f297d6db2f0>  File "test-tf111-tfshoulduse-crash.py", line 170, in test    line: print("step %i, loss: %f" % (s, loss_val))    locals:      print = <builtin> <built-in function print>      s = <local> 0      loss_val = <local> 1.5968431  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 189, in wrapped    line: return _add_should_use_warning(fn(*args, **kwargs))    locals:      _add_should_use_warning = <global> <function _add_should_use_warning at 0x7f298aa78d08>      fn = <local> <function TensorArray.unstack at 0x7f298aa1a0d0>      args = <local> (<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7f297d6d2dd8>, <tf.Variable 'lizer/ra!:0' shape=(10, 1, 6) dtype=float32_ref>)      kwargs = <local> {}
+==================================
+Fatal Python error: Segmentation fault
+
+Current thread 0x00007f29e49c7700 (most recent call first):
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 1611 in _create_c_op
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 1790 in __init__
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 3272 in create_op
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/deprecation.py", line 488 in new_func
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/op_def_library.py", line 787 in _apply_op_helper
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/ops/gen_array_ops.py", line 8336 in strided_slice
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/ops/array_ops.py", line 691 in strided_slice
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/ops/array_ops.py", line 525 in _slice_helper
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/ops/array_ops.py", line 763 in _SliceHelperVar
+  File "/u/zeyer/code/playground/better_exchook.py", line 241 in pp_extra_info
+  File "/u/zeyer/code/playground/better_exchook.py", line 253 in pretty_print
+  File "/u/zeyer/code/playground/better_exchook.py", line 485 in format_py_obj
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in <lambda>
+  File "/u/zeyer/code/playground/better_exchook.py", line 520 in _trySet
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in format_tb
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 37 in format_list
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 193 in format_stack
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 60 in __del__
+fish: Job 1, “python test-tf111-tfshoulduse-c…” terminated by signal SIGSEGV (Address boundary error)
+
 """
 
 import numpy
 import tensorflow as tf
 from tensorflow.python.ops.nn import rnn_cell
 import contextlib
-import better_exchook
 import faulthandler
+import better_exchook
 
 
 @contextlib.contextmanager
