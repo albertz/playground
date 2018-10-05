@@ -70,6 +70,43 @@ Current thread 0x00007f1fb6d1b700 (most recent call first):
   File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 60 in __del__
 fish: Job 1, “python test-tf111-tfshoulduse-c…” terminated by signal SIGABRT (Abort)
 
+---
+
+or:
+
+ERROR:tensorflow:==================================
+Object was never used (type <class 'tensorflow.python.ops.tensor_array_ops.TensorArray'>):
+<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7fbc2fc4b828>
+If you want to mark it as used call its "mark_used()" method.
+It was originally created here:
+  File "test-tf111-tfshoulduse-crash.py", line 299, in <module>    line: test()    locals:      test = <local> <function test at 0x7fbc2229f7b8>  File "test-tf111-tfshoulduse-crash.py", line 288, in test    line: print("step %i, loss: %f" % (s, loss_val))    locals:      print = <builtin> <built-in function print>      s = <local> 9      loss_val = <local> 3.3501906  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 189, in wrapped    line: return _add_should_use_warning(fn(*args, **kwargs))    locals:      _add_should_use_warning = <global> <function _add_should_use_warning at 0x7fbc2f5db0d0>      fn = <local> <function TensorArray.unstack at 0x7fbc2f5df400>      args = <local> (<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7fbc307a0e48>, <tf.Tensor 'pe:0' shape=(?, ?, 6) dtype=float32>)      kwargs = <local> {}
+==================================
+ERROR:tensorflow:==================================
+Object was never used (type <class 'tensorflow.python.ops.tensor_array_ops.TensorArray'>):
+<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7fbc2fc4b160>
+If you want to mark it as used call its "mark_used()" method.
+It was originally created here:
+  File "test-tf111-tfshoulduse-crash.py", line 299, in <module>    line: test()    locals:      test = <local> <function test at 0x7fbc2229f7b8>  File "test-tf111-tfshoulduse-crash.py", line 288, in test    line: print("step %i, loss: %f" % (s, loss_val))    locals:      print = <builtin> <built-in function print>      s = <local> 9      loss_val = <local> 3.3501906  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 189, in wrapped    line: return _add_should_use_warning(fn(*args, **kwargs))    locals:      _add_should_use_warning = <global> <function _add_should_use_warning at 0x7fbc2f5db0d0>      fn = <local> <function TensorArray.unstack at 0x7fbc2f5df400>      args = <local> (<tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7fbc307a0e48>, <tf.Tensor 'pe:0' shape=(?, ?, 6) dtype=float32>)      kwargs = <local> {}  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/ops/tensor_array_ops.py", line 907, in unstack    line: return self._implementation.unstack(value, name=name)    locals:      self = <local> <tensorflow.python.ops.tensor_array_ops.TensorArray object at 0x7fbc307a0e48>      self._implementation = <local> <tensorflow.python.ops.tensor_array_ops._GraphTensorArray object at 0x7fbc2229df60>      self._implementation.unstack = <local> <bound method should_use_result.<locals>.wrapped of <tensorflow.python.ops.tensor_array_ops._GraphTensorArray object at 0x7fbc2229df60>>      value = <local> <tf.Tensor 'pe:0' shape=(?, ?, 6) dtype=float32>      name = <local> None  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 189, in wrapped    line: return _add_should_use_warning(fn(*args, **kwargs))    locals:      _add_should_use_warning = <global> <function _add_should_use_warning at 0x7fbc2f5db0d0>      fn = <local> <function _GraphTensorArray.unstack at 0x7fbc2f5dba60>      args = <local> (<tensorflow.python.ops.tensor_array_ops._GraphTensorArray object at 0x7fbc2229df60>, <tf.Tensor 'b:0' shape=(?, ?, 6) dtype=float32>)      kwargs = <local> {'name': None}
+==================================
+terminate called after throwing an instance of 'std::length_error'
+  what():  basic_string::resize
+Fatal Python error: Aborted
+
+Current thread 0x00007fbc8958b700 (most recent call first):
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 436 in _c_api_shape
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 407 in shape
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 492 in get_shape
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/framework/ops.py", line 614 in __repr__
+  File "/u/zeyer/code/playground/better_exchook.py", line 249 in pretty_print
+  File "/u/zeyer/code/playground/better_exchook.py", line 485 in format_py_obj
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in <lambda>
+  File "/u/zeyer/code/playground/better_exchook.py", line 520 in _trySet
+  File "/u/zeyer/code/playground/better_exchook.py", line 565 in format_tb
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 37 in format_list
+  File "/u/zeyer/.linuxbrew/opt/python3/lib/python3.6/traceback.py", line 193 in format_stack
+  File "/u/zeyer/py-envs/py36-tf111/lib/python3.6/site-packages/tensorflow/python/util/tf_should_use.py", line 60 in __del__
+fish: Job 1, “python test-tf111-tfshoulduse-c…” terminated by signal SIGABRT (Abort)
+
 """
 
 import numpy
@@ -175,40 +212,7 @@ class RHNCell(rnn_cell.RNNCell):
     """
     input_dim = x.get_shape().dims[-1].value
     assert input_dim is not None, "%r shape unknown" % (x,)
-    with var_creation_scope():
-      weights = tf.get_variable("W", shape=(input_dim, output_dim))
     return tf.zeros([tf.shape(x)[i] for i in range(x.get_shape().ndims - 1)] + [output_dim])
-
-  def _get_dropout_mask(self):
-    if self._dropout_mask is not None:
-      return self._dropout_mask
-
-    # Create the dropout masks outside the loop:
-    with var_creation_scope():
-      def get_mask():
-        if self.batch_size is not None:
-          batch_size = self.batch_size
-        else:
-          from TFNetworkLayer import LayerBase
-          batch_size = LayerBase.get_recent_layer().get_batch_dim()
-        keep_prob = 1.0 - self.dropout
-        # uniform [keep_prob, 1.0 + keep_prob)
-        random_tensor = keep_prob
-        random_tensor += tf.random_uniform((batch_size, self._num_units), seed=self.dropout_seed, dtype=tf.float32)
-        # 0. if [keep_prob, 1.0) and 1. if [1.0, 1.0 + keep_prob)
-        binary_tensor = tf.floor(random_tensor)
-        return binary_tensor * (1.0 / keep_prob)
-      self._dropout_mask = get_mask()
-    return self._dropout_mask
-
-  def _optional_dropout(self, state):
-    if not self.dropout:
-      return state
-    if self.is_training is False:
-      return state
-    state *= self._get_dropout_mask()
-    state.set_shape((None, self._num_units))
-    return state
 
   def get_input_transformed(self, x, batch_dim=None):
     """
@@ -238,7 +242,7 @@ class RHNCell(rnn_cell.RNNCell):
     # Carry-gate coupled with transform gate: C = 1 - T
     current_state = state
     for i in range(self.depth):
-      current_state_masked = self._optional_dropout(current_state)
+      current_state_masked = current_state
       with tf.variable_scope('depth_%i' % i):
         state_transformed = self._linear(current_state_masked, self._num_units * 2)
       if i == 0:
