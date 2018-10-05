@@ -127,20 +127,6 @@ def make_scope():
       yield session
 
 
-def xavier_initializer(uniform=True, seed=None, dtype=tf.float32):
-  """
-  Alias for tf.glorot_uniform_initializer or tf.glorot_normal_initializer.
-
-  :param bool uniform: uniform or normal distribution
-  :param int seed:
-  :param tf.DType dtype:
-  :return: ((tuple[int]) -> tf.Tensor) | tf.Initializer
-  """
-  from tensorflow.python.ops import init_ops
-  return init_ops.variance_scaling_initializer(
-    scale=1.0, mode='fan_avg', distribution="uniform" if uniform else "normal", seed=seed, dtype=dtype)
-
-
 @contextlib.contextmanager
 def var_creation_scope():
   """
@@ -278,8 +264,7 @@ def test():
         tgt_placeholder: random.uniform(-limit, limit, (1, seq_len, num_outputs)),
       }
 
-    default_var_initializer = xavier_initializer(seed=13)
-    with tf.variable_scope(tf.get_variable_scope(), initializer=default_var_initializer) as scope:
+    with tf.variable_scope(tf.get_variable_scope()) as scope:
       rhn = RHNCell(num_units=num_outputs, is_training=True, dropout=0.9, dropout_seed=1, batch_size=batch_size)
       state = rhn.zero_state(batch_size, tf.float32)
       x = tf.transpose(src_placeholder, [1, 0, 2])
@@ -289,14 +274,6 @@ def test():
       target_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None, num_outputs))
       target_ta = target_ta.unstack(tf.transpose(tgt_placeholder, [1, 0, 2]))
       loss_ta = tf.TensorArray(tf.float32, size=seq_len, element_shape=(None,))
-
-      def loop_iter(i, state, loss_ta):
-        output, state = rhn(inputs=input_ta.read(i), state=state)
-        frame_loss = tf.reduce_mean(tf.squared_difference(target_ta.read(i), output), axis=1)
-        assert frame_loss.get_shape().ndims == 1  # (batch,)
-        # frame_loss = tf.Print(frame_loss, ["frame", i, "loss", tf.reduce_sum(frame_loss)])
-        loss_ta = loss_ta.write(i, frame_loss)
-        return i + 1, state, loss_ta
 
       loss = 0.0
       for i in range(seq_len):
