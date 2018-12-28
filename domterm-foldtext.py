@@ -5,13 +5,15 @@
 # https://domterm.org/Wire-byte-protocol.html
 
 import sys
+import contextlib
 
 
-def start_block():
+@contextlib.contextmanager
+def block():
     sys.stdout.write("\033]110\007")
-
-def end_block():
+    yield
     sys.stdout.write("\033]111\007")
+
 
 def indentation():
     sys.stdout.write("\033]114;\"\u2502\"\007")
@@ -29,20 +31,18 @@ def x():
 def main():
     print("a")
     #elem_sep()
-    start_block()
-    #print("x", end="")
-    #indentation()
-    hide_button()
-    #print("foo")
-    #print("foo", end="")
-    print("foo", end="\033]118\007")
-    start_block()
-    #elem_sep()
-    print("for", end="\033]118\007")
-    print("fox")
-    #print("fox", end="\033]118\007")
-    end_block()
-    end_block()
+    with block():
+        #print("x", end="")
+        indentation()
+        hide_button()
+        #print("foo")
+        #print("foo", end="")
+        print("foo", end="\033]118\007")
+        with block():
+            #elem_sep()
+            print("for", end="\033]118\007")
+            print("fox")
+            #print("fox", end="\033]118\007")
     #print()
     #print("", end="\033]118\007")
     #indentation()
