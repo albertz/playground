@@ -14,12 +14,25 @@ def block():
     yield
     sys.stdout.write("\033]111\007")
 
+@contextlib.contextmanager
+def dummy():
+    yield
+
+@contextlib.contextmanager
+def hide_button_span(mode):
+    """
+    :param int mode: 1 or 2
+    """
+    sys.stdout.write("\033[83;%iu" % mode)
+    yield
+    sys.stdout.write("\033[83;0u")
+
 
 def indentation():
     sys.stdout.write("\033]114;\"\u2502\"\007")
 
 def hide_button():
-    sys.stdout.write("\033[16u\u25BC\033[17u")
+    sys.stdout.write("\033[16u▶▼\033[17u")
 
 def elem_sep():
     sys.stdout.write("\033]116;\"\",\"\u251C\",\" \u251C\"\007")
@@ -36,10 +49,10 @@ def main():
         indentation()
         hide_button()
         #print("foo")
-        #print("foo", end="")
-        print("foo", end="\033]118\007")
-        with block():
+        print("hoo", end="")
+        with hide_button_span(2):
             #elem_sep()
+            print("foo", end="\033]118\007")
             print("for", end="\033]118\007")
             print("fox")
             #print("fox", end="\033]118\007")
