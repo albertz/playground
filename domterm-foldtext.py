@@ -96,6 +96,8 @@ def fold_text(prefix, hidden, postfix="", file=None):
             indentation(file=file)
             hide_button(file=file)
             file.write(prefix)
+            if prefix.endswith("\x1b[0m"):
+                file.write(" ")  # bug in DomTerm?
             with hide_button_span(2, file=file):
                 file.write(hidden.replace("\n", "\033]118\007"))
     else:
@@ -147,6 +149,9 @@ def main():
             print("After the deepest fold.")
         print("After second fold.")
         print("Some extra.")
+
+    with fold_text_stream("with \x1b[31mcolor:\x1b[0m"):
+        print("hey")
 
     print("Enough.")
     print("Bye.")
