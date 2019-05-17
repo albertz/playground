@@ -62,7 +62,7 @@ def get_mod_from_dict_3(d):
   """
   objects = gc.get_referrers(d)
   for obj in objects:
-    if isinstance(obj, types.ModuleType):
+    if isinstance(obj, types.ModuleType) and vars(obj) is d:
       return obj
   return None
 
