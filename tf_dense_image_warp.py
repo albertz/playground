@@ -16,9 +16,9 @@ def load_image():
   import PIL.Image  # pip install pillow
   img = PIL.Image.open(fn)
   img = numpy.array(img)
-  #if img.dtype == numpy.uint8:
-  #  img = img.astype(numpy.float32) / 255.
-  #assert img.ndim == 3 and img.shape[-1] == 3 and img.dtype == numpy.float32
+  if img.dtype == numpy.uint8:
+    img = img.astype(numpy.float32) / 255.
+  assert img.ndim == 3 and img.shape[-1] == 3 and img.dtype == numpy.float32
   img = img.transpose([1, 0, 2])
   return img
 
@@ -58,8 +58,8 @@ class Gui:
     size = tuple(numpy.array(self.image.shape[:2]).transpose())
     print("image size:", size)
 
-    texture = Texture.create(size=size, colorfmt="rgb", bufferfmt="ubyte")
-    texture.blit_buffer(self.image.transpose([1, 0, 2]).tostring(), colorfmt="rgb", bufferfmt="ubyte")
+    texture = Texture.create(size=size, colorfmt="rgb", bufferfmt="float")
+    texture.blit_buffer(self.image.transpose([1, 0, 2]).tostring(), colorfmt="rgb", bufferfmt="float")
 
     with self.app.root.canvas:
       Rectangle(texture=texture, pos=(0, 0), size=numpy.array(size) * 2)
