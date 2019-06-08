@@ -67,26 +67,33 @@ class Transformer:
     self.session = tf.Session()
     self.img_in = tf.placeholder(tf.float32, shape=(None, None, 3), name="img_in")  # (width,height,channel)
     self.img_ins = tf.expand_dims(self.img_in, axis=0)  # (batch,width,height,channel)
-    self.flow = self._create_flow(shape=tf.shape(self.img_ins)[:-1], scale=50.)
-    # self.img_outs = dense_image_warp(self.img_ins, flow=self.flow)
-    self.img_outs = self._flow_x_to_img(self.flow)  # debug, to visualize the flow
+    self.flow = self._create_flow(shape=tf.shape(self.img_ins)[:-1], std=50.)
+    self.img_outs = dense_image_warp(self.img_ins, flow=self.flow)
+    # self.img_outs = self._flow_x_to_img(self.flow)  # debug, to visualize the flow
     self.img_out = tf.squeeze(self.img_outs, axis=0)  # (width,height,channel)
 
-  def _create_flow(self, shape, scale=None):
+  def _create_flow(self, shape, std=None, scale=5., blur_std=None):
     """
-    :param shape:
-    :param scale:
+    :param tf.Tensor shape:
+    :param float std:
+    :param float scale:
     :return: [batch, height, width, 2]
     :rtype: tf.Tensor
     """
-    scale_x = scale
-    scale_y = scale
+    if blur_std is None:
+      blur_std = std * 0.5
+    shape.set_shape((3,))  # b,h,w
+    small_shape = [shape[0], shape[1] // int(scale), shape[2] // int(scale)]
+    scale_x = std
+    scale_y = std
     # [batch, height, width, 2]
-    flow1 = tf.random.normal(shape=shape, stddev=scale_x)
-    flow2 = tf.random.normal(shape=shape, stddev=scale_y)
+    flow1 = tf.random.normal(shape=small_shape, stddev=scale_x)
+    flow2 = tf.random.normal(shape=small_shape, stddev=scale_y)
     flow = tf.concat([tf.expand_dims(flow1, axis=-1), tf.expand_dims(flow2, axis=-1)], axis=-1)
     flow.set_shape((None, None, None, 2))
-    flow = blur(flow, std=5.)
+    flow = blur(flow, std=blur_std // scale)
+    flow = tf.image.resize_images(flow, size=[shape[1], shape[2]])
+    flow *= scale
     return flow
 
   def _flow_x_to_img(self, flow):
