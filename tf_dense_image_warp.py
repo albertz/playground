@@ -20,6 +20,7 @@ def load_image():
     img = img.astype(numpy.float32) / 255.
   assert img.ndim == 3 and img.shape[-1] == 3 and img.dtype == numpy.float32
   img = img.transpose([1, 0, 2])
+  img = numpy.flip(img, axis=1)
   return img
 
 
@@ -43,16 +44,13 @@ class Transformer:
 
 class Gui:
   def __init__(self):
-    self.image = load_image()
-
     from kivy.app import App
-    from kivy.uix.image import Image
     from kivy.uix.widget import Widget
     from kivy.graphics.texture import Texture
     from kivy.graphics import Rectangle
 
+    self.image = load_image()
     self.app = App()
-
     self.app.root = Widget()
 
     size = tuple(numpy.array(self.image.shape[:2]).transpose())
@@ -63,7 +61,6 @@ class Gui:
 
     with self.app.root.canvas:
       Rectangle(texture=texture, pos=(0, 0), size=numpy.array(size) * 2)
-      #Rectangle(texture=texture, pos=(0, 0))
 
   def run(self):
     self.app.run()
