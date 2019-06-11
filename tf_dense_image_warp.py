@@ -158,30 +158,46 @@ def load_image():
 
 def gaussian_kernel_2d(size, std):
   """
-  :param int size:
-  :param float std:
-  :return: (size*2+1,size*2+1), float32
+  :param int|(int,int) size:
+  :param float|(float,float) std:
+  :return: (size_x*2+1,size_y*2+1), float32
   :rtype: tf.Tensor
   """
-  d = tf.distributions.Normal(0.0, std)
-  values = d.prob(tf.range(start=-size, limit=size + 1, dtype=tf.float32))
-  values = tf.einsum('i,j->ij', values, values)
-  values.set_shape((size * 2 + 1, size * 2 + 1))
+  if isinstance(size, (tuple, list)):
+    size_x, size_y = size
+  else:
+    size_x, size_y, = size, size
+  if isinstance(std, (tuple, list)):
+    std_x, std_y = std
+  else:
+    std_x, std_y = std, std
+  values_x = tf.range(start=-size_x, limit=size_x + 1, dtype=tf.float32)
+  values_y = tf.range(start=-size_y, limit=size_y + 1, dtype=tf.float32)
+  dx = tf.distributions.Normal(0.0, std_x)
+  dy = tf.distributions.Normal(0.0, std_y)
+  values_x = dx.prob(values_x)
+  values_y = dy.prob(values_y)
+  values = tf.einsum('i,j->ij', values_x, values_y)
+  values.set_shape((size_x * 2 + 1, size_y * 2 + 1))
   return values / tf.reduce_sum(values)
 
 
 def gaussian_blur_2d(image, kernel_size=None, kernel_std=None):
   """
   :param tf.Tensor image: (batch,width,height,channel)
-  :param int kernel_size:
-  :param float kernel_std:
+  :param int|(int,int)|None kernel_size:
+  :param float|(float,float)|None kernel_std:
   :return: image
   :rtype: tf.Tensor
   """
   if kernel_std is None:
     kernel_std = 1.
   if kernel_size is None:
-    kernel_size = int(kernel_std * 2 + 1)
+    if isinstance(kernel_std, (tuple, list)):
+      assert len(kernel_std) == 2
+      kernel_size = (int(kernel_std[0] * 2 + 1), int(kernel_std[1] * 2 + 1))
+    else:
+      kernel_size = int(kernel_std * 2 + 1)
   image.set_shape((None, None, None, None))
   orig_shape = tf.shape(image)
   orig_shape = [orig_shape[i] for i in range(image.get_shape().ndims)]
@@ -222,7 +238,7 @@ class Transformer:
     # [batch, height, width, 2]
     flow1 = tf.random_normal(shape=small_shape, stddev=scale_x)
     flow2 = tf.random_normal(shape=small_shape, stddev=scale_y)
-    flow = tf.concat([tf.expand_dims(flow1, axis=-1), tf.expand_dims(flow2, axis=-1)], axis=-1)
+    flow = tf.stack([flow1, flow2], axis=-1)
     flow.set_shape((None, None, None, 2))
     flow = gaussian_blur_2d(flow, kernel_std=blur_std // scale)
     flow = tf.image.resize_images(flow, size=[shape[1], shape[2]])
