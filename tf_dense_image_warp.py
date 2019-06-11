@@ -5,26 +5,20 @@ import numpy
 import tensorflow as tf
 
 
-def _interpolate_bilinear(grid,
-                          query_points,
-                          name='interpolate_bilinear',
-                          indexing='ij'):
+def interpolate_bilinear(grid, query_points, name='interpolate_bilinear', indexing='ij'):
   """
   Similar to Matlab's interp2 function.
   Finds values for query points on a grid using bilinear interpolation.
   Adapted from tensorflow.contrib.image.dense_image_warp, from newer TF version which supports variable-sized images.
-  Args:
-    :param tf.Tensor grid: a 4-D float `Tensor` of shape `[batch, height, width, channels]`.
-    :param tf.Tensor query_points: a 3-D float `Tensor` of N points with shape `[batch, N, 2]`.
-    :param str name: a name for the operation (optional).
-    :param str indexing: whether the query points are specified as row and column (ij),
-      or Cartesian coordinates (xy).
-  Returns:
-    values: a 3-D `Tensor` with shape `[batch, N, channels]`
-    :rtype: tf.Tensor
+
+  :param tf.Tensor grid: a 4-D float `Tensor` of shape `[batch, height, width, channels]`.
+  :param tf.Tensor query_points: a 3-D float `Tensor` of N points with shape `[batch, N, 2]`.
+  :param str name: a name for the operation (optional).
+  :param str indexing: whether the query points are specified as row and column (ij), or Cartesian coordinates (xy).
+  :returns: a 3-D `Tensor` with shape `[batch, N, channels]`
+  :rtype: tf.Tensor
   """
-  if indexing != 'ij' and indexing != 'xy':
-    raise ValueError('Indexing mode must be \'ij\' or \'xy\'')
+  assert indexing in ('ij', 'xy')
 
   with tf.name_scope(name):
     grid = tf.convert_to_tensor(grid)
@@ -76,6 +70,7 @@ def _interpolate_bilinear(grid,
         # (since the alpha values don't depend on the channel).
         alpha = tf.expand_dims(alpha, 2)
         alphas.append(alpha)
+    assert len(alphas) == len(floors) == len(ceils) == len(index_order) == 2
 
     with tf.control_dependencies([
         tf.assert_less_equal(
@@ -92,6 +87,12 @@ def _interpolate_bilinear(grid,
     # Then we gather. Finally, we reshape the output back. It's possible this
     # code would be made simpler by using array_ops.gather_nd.
     def gather(y_coords, x_coords, name):
+      """
+      :param tf.Tensor y_coords:
+      :param tf.Tensor x_coords:
+      :param str name:
+      :rtype: tf.Tensor
+      """
       with tf.name_scope('gather-' + name):
         linear_coordinates = batch_offsets + y_coords * width + x_coords
         gathered_values = tf.gather(flattened_grid, linear_coordinates)
@@ -113,16 +114,15 @@ def _interpolate_bilinear(grid,
 
 
 def dense_image_warp(image, flow, name='dense_image_warp'):
-  """Image warping using per-pixel flow vectors.
+  """
+  Image warping using per-pixel flow vectors.
   Adapted from tensorflow.contrib.image.dense_image_warp, from newer TF version which supports variable-sized images.
-  Args:
-    :param tf.Tensor image: 4-D float `Tensor` with shape `[batch, height, width, channels]`.
-    :param tf.Tensor flow: A 4-D float `Tensor` with shape `[batch, height, width, 2]`.
-    :param str name: A name for the operation (optional).
-  Returns:
-    A 4-D float `Tensor` with shape`[batch, height, width, channels]`
-      and same type as input image.
-    :rtype: tf.Tensor
+
+  :param tf.Tensor image: 4-D float `Tensor` with shape `[batch, height, width, channels]`.
+  :param tf.Tensor flow: A 4-D float `Tensor` with shape `[batch, height, width, 2]`.
+  :param str name: A name for the operation (optional).
+  :returns: A 4-D float `Tensor` with shape`[batch, height, width, channels]` and same type as input image.
+  :rtype: tf.Tensor
   """
   with tf.name_scope(name):
     image_shape = tf.shape(image)
@@ -134,7 +134,7 @@ def dense_image_warp(image, flow, name='dense_image_warp'):
     query_points_on_grid = batched_grid - flow
     query_points_flattened = tf.reshape(query_points_on_grid, [batch_size, height * width, 2])
     # Compute values at the query points, then reshape the result back to the image grid.
-    interpolated = _interpolate_bilinear(image, query_points_flattened)
+    interpolated = interpolate_bilinear(image, query_points_flattened)
     interpolated = tf.reshape(interpolated, [batch_size, height, width, channels])
     return interpolated
 
@@ -269,7 +269,7 @@ class Gui:
     self._blit(self.image)
 
     with self.app.root.canvas:
-      Rectangle(texture=self.texture, pos=(0, 0), size=numpy.array(size) * 2)
+      Rectangle(texture=self.texture, pos=(0, 0), size=numpy.array(size))
 
   def run(self):
     from kivy.clock import Clock
