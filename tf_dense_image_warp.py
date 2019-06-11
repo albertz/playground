@@ -211,39 +211,46 @@ def gaussian_blur_2d(image, kernel_size=None, kernel_std=None):
   return image
 
 
+def create_flow(shape, std=None, scale=10., blur_std=5.):
+  """
+  :param tf.Tensor|(int,int,int) shape: 1D, contains (batch,height,width)
+  :param float|(float,float) std:
+  :param float|(float,float) scale:
+  :param float|(float,float) blur_std:
+  :return: [batch, height, width, 2]
+  :rtype: tf.Tensor
+  """
+  if not isinstance(std, (tuple, list)):
+    std = (std, std)
+  if not isinstance(scale, (tuple, list)):
+    scale = (scale, scale)
+  if not isinstance(blur_std, (tuple, list)):
+    blur_std = (blur_std, blur_std)
+  if isinstance(shape, (tuple, list)):
+    assert len(shape) == 3
+  else:
+    assert isinstance(shape, tf.Tensor)
+    shape.set_shape((3,))  # b,h,w
+  small_shape = [shape[0], shape[1] // int(scale[0]), shape[2] // int(scale[1])]
+  # [batch, height, width, 2]
+  flow1 = tf.random_normal(shape=small_shape, stddev=std[0])
+  flow2 = tf.random_normal(shape=small_shape, stddev=std[1])
+  flow = tf.stack([flow1, flow2], axis=-1)
+  flow.set_shape((None, None, None, 2))
+  flow = gaussian_blur_2d(flow, kernel_std=blur_std)
+  flow = tf.image.resize_images(flow, size=[shape[1], shape[2]])
+  return flow
+
+
 class Transformer:
   def __init__(self):
     self.session = tf.Session()
     self.img_in = tf.placeholder(tf.float32, shape=(None, None, 3), name="img_in")  # (width,height,channel)
     self.img_ins = tf.expand_dims(self.img_in, axis=0)  # (batch,width,height,channel)
-    self.flow = self._create_flow(shape=tf.shape(self.img_ins)[:-1], std=50.)
+    self.flow = create_flow(shape=tf.shape(self.img_ins)[:-1], std=50.)
     self.img_outs = dense_image_warp(self.img_ins, flow=self.flow)
     # self.img_outs = self._flow_x_to_img(self.flow)  # debug, to visualize the flow
     self.img_out = tf.squeeze(self.img_outs, axis=0)  # (width,height,channel)
-
-  def _create_flow(self, shape, std=None, scale=5., blur_std=None):
-    """
-    :param tf.Tensor shape: 1D, contains (batch,height,width)
-    :param float std:
-    :param float scale:
-    :return: [batch, height, width, 2]
-    :rtype: tf.Tensor
-    """
-    if blur_std is None:
-      blur_std = std * 0.5
-    shape.set_shape((3,))  # b,h,w
-    small_shape = [shape[0], shape[1] // int(scale), shape[2] // int(scale)]
-    scale_x = std
-    scale_y = std
-    # [batch, height, width, 2]
-    flow1 = tf.random_normal(shape=small_shape, stddev=scale_x)
-    flow2 = tf.random_normal(shape=small_shape, stddev=scale_y)
-    flow = tf.stack([flow1, flow2], axis=-1)
-    flow.set_shape((None, None, None, 2))
-    flow = gaussian_blur_2d(flow, kernel_std=blur_std // scale)
-    flow = tf.image.resize_images(flow, size=[shape[1], shape[2]])
-    flow *= scale
-    return flow
 
   def _flow_x_to_img(self, flow):
     """
