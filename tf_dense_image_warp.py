@@ -160,7 +160,7 @@ def gaussian_kernel_2d(size, std):
   """
   :param int size:
   :param float std:
-  :return: (size,size), float32
+  :return: (size*2+1,size*2+1), float32
   :rtype: tf.Tensor
   """
   d = tf.distributions.Normal(0.0, std)
@@ -170,23 +170,24 @@ def gaussian_kernel_2d(size, std):
   return values / tf.reduce_sum(values)
 
 
-def blur(image, size=None, std=None):
+def gaussian_blur_2d(image, kernel_size=None, kernel_std=None):
   """
   :param tf.Tensor image: (batch,width,height,channel)
-  :param int size:
-  :param float std:
+  :param int kernel_size:
+  :param float kernel_std:
   :return: image
   :rtype: tf.Tensor
   """
-  if std is None:
-    std = 1.
-  if size is None:
-    size = int(std * 2 + 1)
+  if kernel_std is None:
+    kernel_std = 1.
+  if kernel_size is None:
+    kernel_size = int(kernel_std * 2 + 1)
   image.set_shape((None, None, None, None))
   orig_shape = tf.shape(image)
+  orig_shape = [orig_shape[i] for i in range(image.get_shape().ndims)]
   image = tf.transpose(image, [0, 3, 1, 2])  # (B,C,W,H)
   image = tf.reshape(image, [orig_shape[0] * orig_shape[3], orig_shape[1], orig_shape[2], 1])  # (B*C,W,H,1)
-  gauss_kernel = gaussian_kernel_2d(size=size, std=std)
+  gauss_kernel = gaussian_kernel_2d(size=kernel_size, std=kernel_std)
   gauss_kernel = gauss_kernel[:, :, tf.newaxis, tf.newaxis]
   image = tf.nn.conv2d(image, gauss_kernel, strides=[1, 1, 1, 1], padding="SAME")
   image = tf.reshape(image, [orig_shape[0], orig_shape[3], orig_shape[1], orig_shape[2]])  # (B,C,W,H)
@@ -206,7 +207,7 @@ class Transformer:
 
   def _create_flow(self, shape, std=None, scale=5., blur_std=None):
     """
-    :param tf.Tensor shape:
+    :param tf.Tensor shape: 1D, contains (batch,height,width)
     :param float std:
     :param float scale:
     :return: [batch, height, width, 2]
@@ -223,7 +224,7 @@ class Transformer:
     flow2 = tf.random_normal(shape=small_shape, stddev=scale_y)
     flow = tf.concat([tf.expand_dims(flow1, axis=-1), tf.expand_dims(flow2, axis=-1)], axis=-1)
     flow.set_shape((None, None, None, 2))
-    flow = blur(flow, std=blur_std // scale)
+    flow = gaussian_blur_2d(flow, kernel_std=blur_std // scale)
     flow = tf.image.resize_images(flow, size=[shape[1], shape[2]])
     flow *= scale
     return flow
