@@ -211,7 +211,7 @@ def gaussian_blur_2d(image, kernel_size=None, kernel_std=None):
   return image
 
 
-def create_flow(shape, std=None, scale=10., blur_std=5.):
+def create_flow(shape, std=None, scale=10., blur_std=2.):
   """
   :param tf.Tensor|(int,int,int) shape: 1D, contains (batch,height,width)
   :param float|(float,float) std:
