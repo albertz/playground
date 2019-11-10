@@ -1,4 +1,11 @@
 
+# https://stackoverflow.com/questions/58774526/tensorflow-custom-c-op-with-resource-handle
+# https://stackoverflow.com/questions/55958530/custom-resource-in-tensorflow
+# https://github.com/cyberfire/tensorflow-mtcnn/issues/8
+# https://github.com/tensorflow/tensorflow/pull/21072
+# https://github.com/tensorflow/tensorflow/issues/19747
+# https://github.com/tensorflow/tensorflow/issues/17316
+
 import os
 import sys
 from subprocess import check_call
