@@ -30,6 +30,7 @@ def compile_so():
   common_opts += ["-fPIC", "-v"]
   common_opts += ["-D_GLIBCXX_USE_CXX11_ABI=%i" % (1 if use_cxx11_abi else 0)]
   common_opts += ["-g"]
+  common_opts += ["-DNDEBUG"]  # this fixes the bug! see TF issue 17316
   opts = common_opts + [CC_NAME, "-o", SO_NAME]
   ld_flags = ["-L%s" % tf.sysconfig.get_lib(), "-ltensorflow_framework"]
   opts += ld_flags
