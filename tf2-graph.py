@@ -7,6 +7,11 @@ https://www.tensorflow.org/guide/migrate
 
 `import tensorflow.compat.v1 as tf`? (useful to not change too much...)
 
+https://github.com/rwth-i6/returnn/issues/292
+https://stackoverflow.com/questions/61964379/tf-data-dataset-runs-on-cpu-except-of-prefetchdataset
+https://stackoverflow.com/questions/61964754/is-there-a-queue-like-dataset
+https://stackoverflow.com/questions/61964090/running-defun-in-graph-mode
+
 """
 
 import better_exchook
