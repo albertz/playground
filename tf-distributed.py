@@ -36,9 +36,25 @@ def main():
   proc = multiprocessing.Process(target=proc_server, args=(1,), daemon=True)
   proc.start()
 
-  with tf.compat.v1.Session("grpc://%s" % cluster_def["worker"][0]) as session:
+  target = "grpc://%s" % cluster_def["worker"][0]
+
+  # Remote session.
+  with tf.compat.v1.Session(target) as session:
     session.run(tf.print("Hey"))
+    # Do not try this at home.
     # session.run(tf.raw_ops.Abort(error_msg="Exit", exit_without_error=True))
+
+  from tensorflow.python.eager import function
+
+  #@tf.function(autograph=False)
+  @function.defun(input_signature=[tf.TensorSpec([], tf.int32)])
+  def f(x):
+    with tf.control_dependencies([tf.print("Hey from f")]):
+      return tf.constant([1]) + x
+
+  # Local session.
+  with tf.compat.v1.Session() as session:
+    session.run(tf.python.remote_call(target, f=f._get_concrete_function_internal(), Tout=[tf.int32], args=[1]))
 
   while True:
     time.sleep(1)
