@@ -9,6 +9,7 @@ https://stackoverflow.com/questions/61986820/tf-distribute-server-pipe-creation-
 import tensorflow as tf
 import better_exchook
 import multiprocessing
+import time
 
 better_exchook.install()
 tf.compat.v1.disable_eager_execution()
@@ -28,10 +29,19 @@ def proc_server(task_index: int):
 
 def main():
   print("TF:", tf.version.VERSION)
+
   multiprocessing.set_start_method("spawn")
   proc = multiprocessing.Process(target=proc_server, args=(0,), daemon=True)
   proc.start()
-  proc.join()
+  proc = multiprocessing.Process(target=proc_server, args=(1,), daemon=True)
+  proc.start()
+
+  with tf.compat.v1.Session("grpc://%s" % cluster_def["worker"][0]) as session:
+    session.run(tf.print("Hey"))
+    # session.run(tf.raw_ops.Abort(error_msg="Exit", exit_without_error=True))
+
+  while True:
+    time.sleep(1)
 
 
 if __name__ == '__main__':
