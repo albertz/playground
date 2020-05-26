@@ -4,6 +4,7 @@
 https://github.com/rwth-i6/returnn/wiki/Distributed-TensorFlow
 https://www.tensorflow.org/api_docs/python/tf/distribute/Server
 https://stackoverflow.com/questions/61986820/tf-distribute-server-pipe-creation-failed-too-many-open-files-segfault
+https://stackoverflow.com/questions/61988958/tf-python-remote-call-vs-tf-device-when-do-you-need-remote-call
 """
 
 import tensorflow as tf
