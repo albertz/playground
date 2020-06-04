@@ -11,6 +11,7 @@ import tensorflow as tf
 import better_exchook
 import multiprocessing
 import time
+import os
 
 better_exchook.install()
 tf.compat.v1.disable_eager_execution()
@@ -24,6 +25,7 @@ cluster_def = {
 
 
 def proc_server(task_index: int):
+  print("Proc server, pid", os.getpid())
   server = tf.distribute.Server(cluster_def, task_index=task_index)
   server.join()
 
@@ -45,20 +47,39 @@ def main():
     # Do not try this at home.
     # session.run(tf.raw_ops.Abort(error_msg="Exit", exit_without_error=True))
 
-  from tensorflow.python.eager import function
+  from tensorflow.python.eager.function import defun
+  from tensorflow.python.framework.function import Defun
+
+  def get_current_device():
+    """
+    :rtype: tf.Tensor
+    :return: string, e.g. "/job:worker/replica:0/task:1/device:CPU:0"
+    """
+    dummy_iter = tf.data.Iterator.from_structure(tf.int32)
+    # noinspection PyProtectedMember
+    return tf.raw_ops.IteratorGetDevice(resource=dummy_iter._iterator_resource)
 
   #@tf.function(autograph=False)
-  @function.defun(input_signature=[tf.TensorSpec([], tf.int32)])
+  #@defun(input_signature=[tf.TensorSpec([], tf.int32)])
+  @Defun(tf.int32)
   def f(x):
-    with tf.control_dependencies([tf.print("Hey from f")]):
+    with tf.control_dependencies([tf.print("Hey from f", "x:", x, "device:", get_current_device())]):
       return tf.constant([1]) + x
 
-  # Local session.
-  with tf.compat.v1.Session() as session:
-    session.run(tf.python.remote_call(target, f=f._get_concrete_function_internal(), Tout=[tf.int32], args=[1]))
+  #f_ = f._get_concrete_function_internal()  # via defun
+  f_ = f
 
-  while True:
-    time.sleep(1)
+  # Local session.
+  with tf.compat.v1.Session(target) as session:
+    session.run(
+      tf.python.remote_call("/task:1", f=f_, Tout=[tf.int32], args=[1]))
+    with tf.device("/task:0"):
+      session.run(f(1))
+    with tf.device("/task:1"):
+      session.run(f(1))
+
+  #while True:
+  #  time.sleep(1)
 
 
 if __name__ == '__main__':
