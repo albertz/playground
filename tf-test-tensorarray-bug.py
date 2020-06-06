@@ -23,7 +23,7 @@ def add_check_numerics_ops(name="add_check_numerics_ops"):
   :return: operation which performs all the checks
   :rtype: tf.Operation
   """
-  ops = tf.get_default_graph().get_operations()
+  ops = tf.compat.v1.get_default_graph().get_operations()
   with tf.name_scope(name):
     check_op = []
     # This code relies on the ordering of ops in get_operations().
@@ -35,7 +35,7 @@ def add_check_numerics_ops(name="add_check_numerics_ops"):
       # Frames from within a while-loop are partly broken.
       # https://github.com/tensorflow/tensorflow/issues/2211
       # noinspection PyProtectedMember
-      if op._get_control_flow_context() != tf.get_default_graph()._get_control_flow_context():
+      if op._get_control_flow_context() != tf.compat.v1.get_default_graph()._get_control_flow_context():
         continue
       for output in op.outputs:
         if output.dtype not in [tf.float16, tf.float32, tf.float64]:
@@ -43,17 +43,19 @@ def add_check_numerics_ops(name="add_check_numerics_ops"):
         message = op.name + ":" + str(output.value_index)
         with tf.control_dependencies(check_op):
           print("add check for:", output, op.type)
-          check_op = [tf.check_numerics(output, message=message, name=op.name + "_check_numerics")]
+          check_op = [tf.compat.v1.check_numerics(output, message=message, name=op.name + "_check_numerics")]
     return tf.group(*check_op)
 
 
 def main():
   print("TF version:", tf.__version__)
 
+  tf.compat.v1.disable_eager_execution()
+
   n_input_dim = 2
   n_classes_dim = 3
-  x = tf.placeholder(tf.float32, shape=(None, None, n_input_dim), name="x")
-  targets = tf.placeholder(tf.int32, shape=(None, None), name="targets")
+  x = tf.compat.v1.placeholder(tf.float32, shape=(None, None, n_input_dim), name="x")
+  targets = tf.compat.v1.placeholder(tf.int32, shape=(None, None), name="targets")
   encoder = tf.keras.layers.Dense(units=5, activation="tanh", name="encoder")(x)
   batch = tf.shape(encoder)[0]
   size = tf.shape(encoder)[1]
@@ -125,7 +127,7 @@ def main():
   loss = tf.reduce_mean(loss)
   loss_eval = loss
 
-  opt = tf.train.AdamOptimizer(learning_rate=0.01)  # originally was NadamOptimizer...
+  opt = tf.compat.v1.train.AdamOptimizer(learning_rate=0.01)  # originally was NadamOptimizer...
   minimize_op = opt.minimize(loss)
 
   check_op = add_check_numerics_ops()
@@ -139,7 +141,7 @@ def main():
   targets_np = rnd.randint(0, n_classes_dim, size=(n_batch, n_time))
 
   with tf.compat.v1.Session() as session:
-    session.run(tf.global_variables_initializer())
+    session.run(tf.compat.v1.global_variables_initializer())
     while True:
       print("loss:", session.run(loss, feed_dict={x: x_np, targets: targets_np}))
       print("loss:", session.run(loss_eval, feed_dict={x: x_np, targets: targets_np}))
