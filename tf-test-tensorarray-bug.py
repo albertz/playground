@@ -13,37 +13,17 @@ import tensorflow as tf
 import better_exchook
 
 
-def add_check_numerics_ops(
-      ignore_ops=None, use_check_numerics=True, debug_print_added_checks=True,
-      name="add_check_numerics_ops"):
+def add_check_numerics_ops(name="add_check_numerics_ops"):
   """
   This is similar to :func:`tf.add_check_numerics_ops` and based on similar code.
   It adds some more logic and options.
   Copied from RETURNN, and simplified.
 
-  :param list[tf.Operation|tf.Tensor]|None fetches: in case this is given, will only look at these and dependent ops
-  :param list[str] ignore_ops: e.g. ""
-  :param bool use_check_numerics: if False, instead of :func:`tf.check_numerics`,
-    it does the check manually (via :func:`tf.is_finite`) and in case there is inf/nan,
-    it will also print the tensor (while `tf.check_numerics` does not print the tensor).
-    Note that this can be about 50 times slower.
-  :param bool debug_print_added_checks: prints info about each added check
   :param str name: op-name for the final tf.group
   :return: operation which performs all the checks
   :rtype: tf.Operation
   """
   ops = tf.get_default_graph().get_operations()
-  if ignore_ops is None:
-    # The checks could increase the memory usage a lot.
-    # Ignore some common ops which should not be able to introduce inf/nan.
-    ignore_ops = {
-      "Add", "AddN", "Sum", "Mul", "MatMul", "Sub", "L2Loss", "Floor", "Neg", "UnsortedSegmentSum",
-      "Switch", "Merge", "PreventGradient",
-      "Select", "Maximum", "Minimum", "Abs", "Sign",
-      "Const", "Identity", "Fill", "ZerosLike",
-      "Reshape", "Tile", "ExpandDims", "ConcatV2", "Transpose",
-      "Slice", "StridedSlice", "StridedSliceGrad", "Gather",
-      "TruncatedNormal", "RandomUniform"}
   with tf.name_scope(name):
     check_op = []
     # This code relies on the ordering of ops in get_operations().
@@ -52,8 +32,6 @@ def add_check_numerics_ops(
     # added, and an op can only be added after its inputs are added.
     for op in ops:
       assert isinstance(op, tf.Operation)
-      if op.type in ignore_ops:
-        continue
       # Frames from within a while-loop are partly broken.
       # https://github.com/tensorflow/tensorflow/issues/2211
       # noinspection PyProtectedMember
@@ -64,81 +42,13 @@ def add_check_numerics_ops(
           continue
         message = op.name + ":" + str(output.value_index)
         with tf.control_dependencies(check_op):
-          if debug_print_added_checks:
-            print("add check for:", output, op.type)
-          if use_check_numerics:
-            check_op = [tf.check_numerics(output, message=message, name=op.name + "_check_numerics")]
-          else:
-            is_finite = tf.reduce_all(tf.is_finite(output))
-            check_op = [tf.Assert(is_finite, [message, "Tensor had inf or nan values:", output])]
+          print("add check for:", output, op.type)
+          check_op = [tf.check_numerics(output, message=message, name=op.name + "_check_numerics")]
     return tf.group(*check_op)
 
 
 def main():
   print("TF version:", tf.__version__)
-
-  # From test_rec_subnet_train_t3d_simple:
-  """
-  beam_size = 2
-  network = {
-    "encoder": {"class": "linear", "activation": "tanh", "n_out": 5},
-    "output": {"class": "rec", "from": [], "unit": {
-      'output': {'class': 'choice', 'target': 'classes', 'beam_size': beam_size, 'from': ["output_prob"]},
-      "end": {"class": "compare", "from": ["output"], "value": 0},
-      'orth_embed': {'class': 'linear', 'activation': None, "with_bias": False, 'from': ['output'], "n_out": 6},
-      "s_in": {"class": "linear", "activation": "tanh", "from": ["prev:c", "prev:orth_embed"], "n_out": 5},
-      "s": {"class": "rnn_cell", "unit": "LSTMBlock", "from": ["s_in"], "n_out": 5},
-      "c_in": {"class": "copy", "from": ["s"]},
-      "c": {"class": "dot_attention", "from": ["c_in"], "base": "base:encoder", "base_ctx": "base:encoder"},
-      "att": {"class": "linear", "activation": "tanh", "from": ["c", "s"], "n_out": 6},
-      "output_prob": {"class": "softmax", "from": ["att"], "target": "classes", "loss": "ce"}
-    }, "target": "classes", "max_seq_len": 75},
-  }
-
-  from GeneratingDataset import DummyDataset
-  seq_len = 5
-  n_data_dim = 2
-  n_classes_dim = 3
-  train_data = DummyDataset(input_dim=n_data_dim, output_dim=n_classes_dim, num_seqs=4, seq_len=seq_len)
-  train_data.init_seq_order(epoch=1)
-  cv_data = DummyDataset(input_dim=n_data_dim, output_dim=n_classes_dim, num_seqs=2, seq_len=seq_len)
-  cv_data.init_seq_order(epoch=1)
-
-  config = Config()
-  config.update({
-    "model": "%s/model" % _get_tmp_dir(),
-    "num_outputs": n_classes_dim,
-    "num_inputs": n_data_dim,
-    "network": network,
-    "start_epoch": 1,
-    "num_epochs": 200,
-    "batch_size": 10,
-    "nadam": True,
-    "learning_rate": 0.01,
-    "debug_add_check_numerics_ops": True
-  })
-  _cleanup_old_models(config)
-  engine = Engine(config=config)
-  engine.init_train_from_config(config=config, train_data=train_data, dev_data=cv_data, eval_data=None)
-  engine.train()
-  """
-
-  """
-  Rec layer 'output' (search False, train 'globals/train_flag:0') sub net:
-    Input layers moved out of loop: (#: 2)
-      output
-      orth_embed
-    Output layers moved out of loop: (#: 2)
-      output_prob
-      att                                                                                                                     
-    Layers in loop: (#: 4)
-      c
-      c_in
-      s
-      s_in
-    Unused layers: (#: 1)
-      end  
-  """
 
   n_input_dim = 2
   n_classes_dim = 3
@@ -161,10 +71,7 @@ def main():
   def loop_cond(t, *args):
     return tf.less(t, size)
 
-  # s_lstm = tf.keras.layers.LSTMCell(units=5, name="s")
-  # s_lstm = tf.compat.v1.nn.rnn_cell.LSTMBlockCell(num_units=5, name="s")
-  from tensorflow.contrib.rnn.python.ops.lstm_ops import LSTMBlockCell
-  s_lstm = LSTMBlockCell(num_units=5, name="s")
+  s_lstm = tf.keras.layers.LSTMCell(5, name="s")  # originally was LSTMBlockCell
 
   def loop_body(t, prev_c, prev_s_state, c_ta_, s_ta_):
     assert isinstance(prev_c, tf.Tensor)
@@ -218,9 +125,7 @@ def main():
   loss = tf.reduce_mean(loss)
   loss_eval = loss
 
-  # opt = tf.train.AdamOptimizer(learning_rate=0.01)
-  from tensorflow.contrib.opt.python.training.nadam_optimizer import NadamOptimizer
-  opt = NadamOptimizer(learning_rate=0.01)
+  opt = tf.train.AdamOptimizer(learning_rate=0.01)  # originally was NadamOptimizer...
   minimize_op = opt.minimize(loss)
 
   check_op = add_check_numerics_ops()
