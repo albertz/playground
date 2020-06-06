@@ -11,6 +11,7 @@ Following test_rec_subnet_train_t3d_simple from RETURNN.
 import numpy
 import tensorflow as tf
 import better_exchook
+import argparse
 
 
 def add_check_numerics_ops(name="add_check_numerics_ops"):
@@ -48,9 +49,15 @@ def add_check_numerics_ops(name="add_check_numerics_ops"):
 
 
 def main():
+  arg_parser = argparse.ArgumentParser()
+  arg_parser.add_argument("--nsteps", type=int, default=-1)
+  arg_parser.add_argument("--reset_after_nsteps", type=int, default=-1)
+  args = arg_parser.parse_args()
+
   print("TF version:", tf.__version__)
 
-  tf.compat.v1.disable_eager_execution()
+  # tf.compat.v1.disable_eager_execution()
+  tf.compat.v1.disable_v2_behavior()
 
   n_input_dim = 2
   n_classes_dim = 3
@@ -133,6 +140,7 @@ def main():
   check_op = add_check_numerics_ops()
   with tf.control_dependencies([check_op, minimize_op]):
     loss = tf.identity(loss)
+  vars_init_op = tf.compat.v1.global_variables_initializer()
 
   rnd = numpy.random.RandomState(42)
   n_batch = 2
@@ -141,10 +149,18 @@ def main():
   targets_np = rnd.randint(0, n_classes_dim, size=(n_batch, n_time))
 
   with tf.compat.v1.Session() as session:
-    session.run(tf.compat.v1.global_variables_initializer())
+    session.run(vars_init_op)
+    step = 0
     while True:
-      print("loss:", session.run(loss, feed_dict={x: x_np, targets: targets_np}))
-      print("loss:", session.run(loss_eval, feed_dict={x: x_np, targets: targets_np}))
+      print("step %i, loss:" % step, session.run(loss, feed_dict={x: x_np, targets: targets_np}))
+      print("step %i, loss (eval):" % step, session.run(loss_eval, feed_dict={x: x_np, targets: targets_np}))
+      step += 1
+      if 0 <= args.nsteps <= step:
+        print("Stop after %i steps." % args.nsteps)
+        break
+      if args.reset_after_nsteps >= 0 and step % args.reset_after_nsteps == 0:
+        print("Reset after %i steps." % args.reset_after_nsteps)
+        session.run(vars_init_op)
 
 
 if __name__ == '__main__':
