@@ -7,7 +7,7 @@ Reported by Akshat Dewan <https://github.com/akshatdewan>.
 
 import tensorflow as tf
 from tensorflow.python.client import device_lib
-import time
+import subprocess
 
 tf.compat.v1.disable_eager_execution()
 
@@ -24,6 +24,4 @@ with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_option
   output = sess.run(result)
   print(output)
 
-  print("press Ctrl+C to stop")
-  while True:
-    time.sleep(1)
+  subprocess.check_call(["nvidia-smi"])
