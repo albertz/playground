@@ -13,6 +13,7 @@ import numpy
 import tensorflow as tf
 import better_exchook
 import argparse
+from tensorflow.python.ops import rnn_cell_impl
 
 
 if not getattr(tf, "compat", None):
@@ -90,6 +91,151 @@ def enable_check_numerics_v2():
   tf.debugging.enable_check_numerics()
 
 
+# copy from: https://github.com/tensorflow/tensorflow/blob/v1.15.3/tensorflow/contrib/rnn/python/ops/lstm_ops.py
+class LSTMBlockCell(rnn_cell_impl.LayerRNNCell):
+  def __init__(self,
+               num_units,
+               forget_bias=1.0,
+               cell_clip=None,
+               use_peephole=False,
+               dtype=None,
+               reuse=None,
+               name="lstm_cell"):
+
+    super(LSTMBlockCell, self).__init__(_reuse=reuse, dtype=dtype, name=name)
+    self._num_units = num_units
+    self._forget_bias = forget_bias
+    self._use_peephole = use_peephole
+    self._cell_clip = cell_clip if cell_clip is not None else -1
+    self._names = {
+        "W": "kernel",
+        "b": "bias",
+        "wci": "w_i_diag",
+        "wcf": "w_f_diag",
+        "wco": "w_o_diag",
+        "scope": "lstm_cell"
+    }
+    # Inputs must be 2-dimensional.
+    from tensorflow.python.keras.engine import input_spec
+    self.input_spec = input_spec.InputSpec(ndim=2)
+
+  @property
+  def state_size(self):
+    return rnn_cell_impl.LSTMStateTuple(self._num_units, self._num_units)
+
+  @property
+  def output_size(self):
+    return self._num_units
+
+  def build(self, inputs_shape):
+    if not inputs_shape.dims[1].value:
+      raise ValueError(
+          "Expecting inputs_shape[1] to be set: %s" % str(inputs_shape))
+    input_size = inputs_shape.dims[1].value
+    self._kernel = self.add_variable(
+        self._names["W"], [input_size + self._num_units, self._num_units * 4])
+    self._bias = self.add_variable(
+        self._names["b"], [self._num_units * 4],
+        initializer=tf.constant_initializer(0.0))
+    if self._use_peephole:
+      self._w_i_diag = self.add_variable(self._names["wci"], [self._num_units])
+      self._w_f_diag = self.add_variable(self._names["wcf"], [self._num_units])
+      self._w_o_diag = self.add_variable(self._names["wco"], [self._num_units])
+
+    self.built = True
+
+  def call(self, inputs, state):
+    """Long short-term memory cell (LSTM)."""
+    if len(state) != 2:
+      raise ValueError("Expecting state to be a tuple with length 2.")
+
+    if self._use_peephole:
+      wci = self._w_i_diag
+      wcf = self._w_f_diag
+      wco = self._w_o_diag
+    else:
+      wci = wcf = wco = tf.zeros([self._num_units], dtype=self.dtype)
+
+    (cs_prev, h_prev) = state
+    (_, cs, _, _, _, _, h) = tf.raw_ops.LSTMBlockCell(
+        x=inputs,
+        cs_prev=cs_prev,
+        h_prev=h_prev,
+        w=self._kernel,
+        b=self._bias,
+        wci=wci,
+        wcf=wcf,
+        wco=wco,
+        forget_bias=self._forget_bias,
+        cell_clip=self._cell_clip,
+        use_peephole=self._use_peephole)
+
+    new_state = rnn_cell_impl.LSTMStateTuple(cs, h)
+    return h, new_state
+
+
+@tf.RegisterGradient("LSTMBlockCell")
+def _LSTMBlockCellGrad(op, *grad):
+  """Gradient for LSTMBlockCell."""
+  (x, cs_prev, h_prev, w, wci, wcf, wco, b) = op.inputs
+  (i, cs, f, o, ci, co, _) = op.outputs
+  (_, cs_grad, _, _, _, _, h_grad) = grad
+
+  from tensorflow.python.ops import nn_ops
+
+  batch_size = x.get_shape().with_rank(2).dims[0].value
+  if batch_size is None:
+    batch_size = -1
+  input_size = x.get_shape().with_rank(2).dims[1].value
+  if input_size is None:
+    raise ValueError("input_size from `x` should not be None.")
+  cell_size = cs_prev.get_shape().with_rank(2).dims[1].value
+  if cell_size is None:
+    raise ValueError("cell_size from `cs_prev` should not be None.")
+
+  (cs_prev_grad, dgates, wci_grad, wcf_grad,
+   wco_grad) = tf.raw_ops.LSTMBlockCellGrad(
+       x=x,
+       cs_prev=cs_prev,
+       h_prev=h_prev,
+       w=w,
+       wci=wci,
+       wcf=wcf,
+       wco=wco,
+       b=b,
+       i=i,
+       cs=cs,
+       f=f,
+       o=o,
+       ci=ci,
+       co=co,
+       cs_grad=cs_grad,
+       h_grad=h_grad,
+       use_peephole=op.get_attr("use_peephole"))
+
+  # Backprop from dgates to xh.
+  xh_grad = tf.matmul(dgates, w, transpose_b=True)
+
+  x_grad = tf.slice(xh_grad, (0, 0), (batch_size, input_size))
+  x_grad.get_shape().merge_with(x.get_shape())
+
+  h_prev_grad = tf.slice(xh_grad, (0, input_size),
+                                (batch_size, cell_size))
+  h_prev_grad.get_shape().merge_with(h_prev.get_shape())
+
+  # Backprop from dgates to w.
+  xh = tf.concat([x, h_prev], 1)
+  w_grad = tf.matmul(xh, dgates, transpose_a=True)
+  w_grad.get_shape().merge_with(w.get_shape())
+
+  # Backprop from dgates to b.
+  b_grad = nn_ops.bias_add_grad(dgates)
+  b_grad.get_shape().merge_with(b.get_shape())
+
+  return (x_grad, cs_prev_grad, h_prev_grad, w_grad, wci_grad, wcf_grad,
+          wco_grad, b_grad)
+
+
 def main():
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument("--nsteps", type=int, default=-1)
@@ -133,13 +279,11 @@ def main():
   def loop_cond(t, *args):
     return tf.less(t, size)
 
-  if tf.__version__.startswith("2."):
-    s_lstm = tf.keras.layers.LSTMCell(5, name="s")  # originally was LSTMBlockCell
-  else:
-    from tensorflow.contrib.rnn.python.ops.lstm_ops import LSTMBlockCell
-    s_lstm = LSTMBlockCell(num_units=5, name="s")
-    #from tensorflow.python.ops import rnn_cell
-    #s_lstm = rnn_cell.LSTMCell(5, name="s")  # originally was LSTMBlockCell
+  # from tensorflow.python.ops import rnn_cell
+  # s_lstm = rnn_cell.LSTMCell(5, name="s")  # originally was LSTMBlockCell
+  # s_lstm = tf.keras.layers.LSTMCell(5, name="s")  # originally was LSTMBlockCell
+  # from tensorflow.contrib.rnn.python.ops.lstm_ops import LSTMBlockCell
+  s_lstm = LSTMBlockCell(num_units=5, name="s")
 
   def loop_body(t, prev_c, prev_s_state, c_ta_, s_ta_):
     assert isinstance(prev_c, tf.Tensor)
