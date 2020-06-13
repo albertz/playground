@@ -178,7 +178,6 @@ class LSTMBlockCell(rnn_cell_impl.LayerRNNCell):
     return h, new_state
 
 
-@tf.RegisterGradient("LSTMBlockCell")
 def _LSTMBlockCellGrad(op, *grad):
   """Gradient for LSTMBlockCell."""
   (x, cs_prev, h_prev, w, wci, wcf, wco, b) = op.inputs
@@ -238,6 +237,11 @@ def _LSTMBlockCellGrad(op, *grad):
 
   return (x_grad, cs_prev_grad, h_prev_grad, w_grad, wci_grad, wcf_grad,
           wco_grad, b_grad)
+
+try:
+  tf.RegisterGradient("LSTMBlockCell")(_LSTMBlockCellGrad)
+except KeyError:
+  pass  # maybe already registered... (earlier TF versions)
 
 
 def main():
