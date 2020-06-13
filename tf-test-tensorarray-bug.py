@@ -70,7 +70,7 @@ def add_check_numerics_v1_ops(name="add_check_numerics_ops", verbose=False):
 
 
 def enable_check_numerics_v2():
-  if tf.__version__.endswith("1."):
+  if tf.__version__.startswith("1."):
     return
   from tensorflow.python.debug.lib import check_numerics_callback
   # The flow value of TensorArray/TensorArrayV3 is uninitalized on GPU,
@@ -88,8 +88,14 @@ def main():
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument("--nsteps", type=int, default=-1)
   arg_parser.add_argument("--reset_after_nsteps", type=int, default=-1)
-  args = arg_parser.parse_args(
-    ["--reset_after_nsteps", "100"] if IN_COLAB else sys.argv[1:])
+  arg_parser.add_argument("--input_dim", type=int, default=2)
+  arg_parser.add_argument("--classes_dim", type=int, default=3)
+  arg_parser.add_argument("--batch_size", type=int, default=2)
+  arg_parser.add_argument("--seq_len", type=int, default=5)
+  args = ["--reset_after_nsteps", "100", "--seq_len", "11"]
+  if not IN_COLAB and len(sys.argv) > 1:
+    args = sys.argv[1:]
+  args = arg_parser.parse_args(args)
 
   print("TF version:", tf.__version__)
 
@@ -97,10 +103,10 @@ def main():
   tf.compat.v1.disable_v2_behavior()
   # If in Colab, and you run this repeatedly.
   tf.compat.v1.reset_default_graph()
-  enable_check_numerics_v2()
+  # enable_check_numerics_v2()
 
-  n_input_dim = 2
-  n_classes_dim = 3
+  n_input_dim = args.input_dim
+  n_classes_dim = args.classes_dim
   x = tf.compat.v1.placeholder(tf.float32, shape=(None, None, n_input_dim), name="x")
   targets = tf.compat.v1.placeholder(tf.int32, shape=(None, None), name="targets")
   encoder = tf.keras.layers.Dense(units=5, activation="tanh", name="encoder")(x)
@@ -140,7 +146,7 @@ def main():
     energy = tf.squeeze(energy, axis=2)  # (batch, base_time)
     energy_mask = tf.sequence_mask(tf.fill([batch], size), maxlen=tf.shape(energy)[1])
     # NOTE: The following line seems to trigger it!
-    energy = tf.where(energy_mask, energy, float("-inf") * tf.ones_like(energy))
+    #energy = tf.where(energy_mask, energy, float("-inf") * tf.ones_like(energy))
     base_weights = tf.nn.softmax(energy)  # (batch, base_time)
     base_weights_bc = tf.expand_dims(base_weights, axis=1)  # (batch, 1, base_time)
     out = tf.matmul(base_weights_bc, base)  # (batch, 1, n_out)
@@ -177,23 +183,32 @@ def main():
   opt = tf.compat.v1.train.AdamOptimizer(learning_rate=0.01)  # originally was NadamOptimizer...
   minimize_op = opt.minimize(loss)
 
-  check_op = add_check_numerics_v1_ops()
+  check_op = tf.no_op()  # add_check_numerics_v1_ops()
   with tf.control_dependencies([check_op, minimize_op]):
     loss = tf.identity(loss)
   vars_init_op = tf.compat.v1.global_variables_initializer()
 
   rnd = numpy.random.RandomState(42)
-  n_batch = 2
-  n_time = 5
+  n_batch = args.batch_size
+  n_time = args.seq_len
   x_np = rnd.normal(size=(n_batch, n_time, n_input_dim))
   targets_np = rnd.randint(0, n_classes_dim, size=(n_batch, n_time))
 
+  count_errors = 0
+  loss_np = float("inf")
   with tf.compat.v1.Session() as session:
     session.run(vars_init_op)
     step = 0
     while True:
       print("step %i, loss:" % step, session.run(loss, feed_dict={x: x_np, targets: targets_np}))
-      print("step %i, loss (eval):" % step, session.run(loss_eval, feed_dict={x: x_np, targets: targets_np}))
+      loss_np_ = session.run(loss_eval, feed_dict={x: x_np, targets: targets_np})
+      # print("step %i, loss (eval):" % step, loss_np_)
+      if loss_np_ > loss_np * 1.1:
+        print("ERR, loss increased:", loss_np_)
+        count_errors += 1
+        if count_errors >= 10:
+          sys.exit(1)
+      loss_np = loss_np_
       step += 1
       if 0 <= args.nsteps <= step:
         print("Stop after %i steps." % args.nsteps)
@@ -201,8 +216,13 @@ def main():
       if args.reset_after_nsteps >= 0 and step % args.reset_after_nsteps == 0:
         print("Reset after %i steps." % args.reset_after_nsteps)
         session.run(vars_init_op)
+        loss_np = float("inf")
 
 
 if __name__ == '__main__':
   better_exchook.install()
-  main()
+  try:
+    main()
+  except KeyboardInterrupt:
+    print("KeyboardInterrupt")
+    sys.exit(1)
