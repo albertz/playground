@@ -247,15 +247,13 @@ except KeyError:
 def main():
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument("--nsteps", type=int, default=-1)
-  arg_parser.add_argument("--reset_after_nsteps", type=int, default=-1)
+  arg_parser.add_argument("--reset_after_nsteps", type=int, default=100)
   arg_parser.add_argument("--input_dim", type=int, default=2)
   arg_parser.add_argument("--classes_dim", type=int, default=3)
   arg_parser.add_argument("--batch_size", type=int, default=2)
-  arg_parser.add_argument("--seq_len", type=int, default=5)
-  args = ["--reset_after_nsteps", "100", "--seq_len", "11"]
-  if not IN_COLAB and len(sys.argv) > 1:
-    args = sys.argv[1:]
-  args = arg_parser.parse_args(args)
+  arg_parser.add_argument("--seq_len", type=int, default=11)
+  arg_parser.add_argument("--unroll", action="store_true")
+  args = arg_parser.parse_args([] if IN_COLAB else sys.argv[1:])
 
   print("TF version:", tf.__version__)
 
@@ -266,8 +264,14 @@ def main():
   tf.compat.v1.reset_default_graph()
   # enable_check_numerics_v2()
 
+  rnd = numpy.random.RandomState(42)
   n_input_dim = args.input_dim
   n_classes_dim = args.classes_dim
+  n_batch = args.batch_size
+  n_time = args.seq_len
+  x_np = rnd.normal(size=(n_batch, n_time, n_input_dim))
+  targets_np = rnd.randint(0, n_classes_dim, size=(n_batch, n_time))
+
   x = tf.compat.v1.placeholder(tf.float32, shape=(None, None, n_input_dim), name="x")
   targets = tf.compat.v1.placeholder(tf.int32, shape=(None, None), name="targets")
   encoder = tf.keras.layers.Dense(units=5, activation="tanh", name="encoder")(x)
@@ -325,13 +329,20 @@ def main():
 
     return t + 1, c, s_state, c_ta_, s_ta_
 
-  _, _, _, c_ta, s_ta = tf.while_loop(
-    cond=loop_cond, body=loop_body,
-    loop_vars=(
-      0,  # t
-      tf.zeros([batch, tf.shape(encoder)[-1]]),  # prev_c
-      s_lstm.zero_state(batch_size=batch, dtype=tf.float32),  # prev_s_state
-      c_ta, s_ta))
+  values = (
+    0,  # t
+    tf.zeros([batch, tf.shape(encoder)[-1]]),  # prev_c
+    s_lstm.zero_state(batch_size=batch, dtype=tf.float32),  # prev_s_state
+    c_ta, s_ta)
+
+  if args.unroll:
+    for t in range(n_time):
+      values = loop_body(*values)
+  else:
+    values = tf.while_loop(
+      cond=loop_cond, body=loop_body,
+      loop_vars=values)
+  _, _, _, c_ta, s_ta = values
 
   assert isinstance(c_ta, tf.TensorArray)
   assert isinstance(s_ta, tf.TensorArray)
@@ -352,12 +363,6 @@ def main():
   with tf.control_dependencies([check_op, minimize_op]):
     loss = tf.identity(loss)
   vars_init_op = tf.compat.v1.global_variables_initializer()
-
-  rnd = numpy.random.RandomState(42)
-  n_batch = args.batch_size
-  n_time = args.seq_len
-  x_np = rnd.normal(size=(n_batch, n_time, n_input_dim))
-  targets_np = rnd.randint(0, n_classes_dim, size=(n_batch, n_time))
 
   count_errors = 0
   loss_np = float("inf")
