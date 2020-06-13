@@ -14,7 +14,10 @@ import tensorflow as tf
 import better_exchook
 import argparse
 from tensorflow.python.ops import rnn_cell_impl
-from tensorflow.python.ops import gen_rnn_ops
+try:
+  from tensorflow.contrib.rnn.ops import gen_lstm_ops as gen_rnn_ops
+except ImportError:
+  from tensorflow.python.ops import gen_rnn_ops
 
 
 if not getattr(tf, "compat", None):
