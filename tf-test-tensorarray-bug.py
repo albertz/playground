@@ -253,6 +253,7 @@ def main():
   arg_parser.add_argument("--batch_size", type=int, default=2)
   arg_parser.add_argument("--seq_len", type=int, default=11)
   arg_parser.add_argument("--unroll", action="store_true")
+  arg_parser.add_argument("--add_check_numerics", action="store_true")
   args = arg_parser.parse_args([] if IN_COLAB else sys.argv[1:])
 
   print("TF version:", tf.__version__)
@@ -359,7 +360,7 @@ def main():
   opt = tf.compat.v1.train.AdamOptimizer(learning_rate=0.01)  # originally was NadamOptimizer...
   minimize_op = opt.minimize(loss)
 
-  check_op = tf.no_op()  # add_check_numerics_v1_ops()
+  check_op = add_check_numerics_v1_ops() if args.add_check_numerics else tf.no_op()
   with tf.control_dependencies([check_op, minimize_op]):
     loss = tf.identity(loss)
   vars_init_op = tf.compat.v1.global_variables_initializer()
