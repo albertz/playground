@@ -14,6 +14,7 @@ import tensorflow as tf
 import better_exchook
 import argparse
 from tensorflow.python.ops import rnn_cell_impl
+from tensorflow.python.ops import gen_rnn_ops
 
 
 if not getattr(tf, "compat", None):
@@ -157,7 +158,7 @@ class LSTMBlockCell(rnn_cell_impl.LayerRNNCell):
       wci = wcf = wco = tf.zeros([self._num_units], dtype=self.dtype)
 
     (cs_prev, h_prev) = state
-    (_, cs, _, _, _, _, h) = tf.raw_ops.LSTMBlockCell(
+    (_, cs, _, _, _, _, h) = gen_rnn_ops.LSTMBlockCell(
         x=inputs,
         cs_prev=cs_prev,
         h_prev=h_prev,
@@ -194,7 +195,7 @@ def _LSTMBlockCellGrad(op, *grad):
     raise ValueError("cell_size from `cs_prev` should not be None.")
 
   (cs_prev_grad, dgates, wci_grad, wcf_grad,
-   wco_grad) = tf.raw_ops.LSTMBlockCellGrad(
+   wco_grad) = gen_rnn_ops.LSTMBlockCellGrad(
        x=x,
        cs_prev=cs_prev,
        h_prev=h_prev,
