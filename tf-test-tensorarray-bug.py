@@ -15,6 +15,12 @@ import better_exchook
 import argparse
 
 
+if not getattr(tf, "compat", None):
+  class Dummy: pass
+  tf.compat = Dummy()
+if not getattr(tf.compat, "v1", None):
+  tf.compat.v1 = tf
+
 # https://stackoverflow.com/questions/53581278/test-if-notebook-is-running-on-google-colab
 IN_COLAB = 'google.colab' in sys.modules
 
@@ -99,8 +105,9 @@ def main():
 
   print("TF version:", tf.__version__)
 
-  # tf.compat.v1.disable_eager_execution()
-  tf.compat.v1.disable_v2_behavior()
+  if tf.__version__.startswith("2."):
+    # tf.compat.v1.disable_eager_execution()
+    tf.compat.v1.disable_v2_behavior()
   # If in Colab, and you run this repeatedly.
   tf.compat.v1.reset_default_graph()
   # enable_check_numerics_v2()
@@ -126,7 +133,11 @@ def main():
   def loop_cond(t, *args):
     return tf.less(t, size)
 
-  s_lstm = tf.keras.layers.LSTMCell(5, name="s")  # originally was LSTMBlockCell
+  if tf.__version__.startswith("2."):
+    s_lstm = tf.keras.layers.LSTMCell(5, name="s")  # originally was LSTMBlockCell
+  else:
+    from tensorflow.python.ops import rnn_cell
+    s_lstm = rnn_cell.LSTMCell(5, name="s")  # originally was LSTMBlockCell
 
   def loop_body(t, prev_c, prev_s_state, c_ta_, s_ta_):
     assert isinstance(prev_c, tf.Tensor)
@@ -165,7 +176,7 @@ def main():
     loop_vars=(
       0,  # t
       tf.zeros([batch, tf.shape(encoder)[-1]]),  # prev_c
-      s_lstm.get_initial_state(batch_size=batch, dtype=tf.float32),  # prev_s_state
+      s_lstm.zero_state(batch_size=batch, dtype=tf.float32),  # prev_s_state
       c_ta, s_ta))
 
   assert isinstance(c_ta, tf.TensorArray)
@@ -203,7 +214,7 @@ def main():
       print("step %i, loss:" % step, session.run(loss, feed_dict={x: x_np, targets: targets_np}))
       loss_np_ = session.run(loss_eval, feed_dict={x: x_np, targets: targets_np})
       # print("step %i, loss (eval):" % step, loss_np_)
-      if loss_np_ > loss_np * 1.1:
+      if loss_np_ > loss_np * 2.:
         print("ERR, loss increased:", loss_np_)
         count_errors += 1
         if count_errors >= 10:
