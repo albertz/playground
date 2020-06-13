@@ -136,8 +136,10 @@ def main():
   if tf.__version__.startswith("2."):
     s_lstm = tf.keras.layers.LSTMCell(5, name="s")  # originally was LSTMBlockCell
   else:
-    from tensorflow.python.ops import rnn_cell
-    s_lstm = rnn_cell.LSTMCell(5, name="s")  # originally was LSTMBlockCell
+    from tensorflow.contrib.rnn.python.ops.lstm_ops import LSTMBlockCell
+    s_lstm = LSTMBlockCell(num_units=5, name="s")
+    #from tensorflow.python.ops import rnn_cell
+    #s_lstm = rnn_cell.LSTMCell(5, name="s")  # originally was LSTMBlockCell
 
   def loop_body(t, prev_c, prev_s_state, c_ta_, s_ta_):
     assert isinstance(prev_c, tf.Tensor)
@@ -157,7 +159,7 @@ def main():
     energy = tf.squeeze(energy, axis=2)  # (batch, base_time)
     energy_mask = tf.sequence_mask(tf.fill([batch], size), maxlen=tf.shape(energy)[1])
     # NOTE: The following line seems to trigger it!
-    #energy = tf.where(energy_mask, energy, float("-inf") * tf.ones_like(energy))
+    energy = tf.where(energy_mask, energy, float("-inf") * tf.ones_like(energy))
     base_weights = tf.nn.softmax(energy)  # (batch, base_time)
     base_weights_bc = tf.expand_dims(base_weights, axis=1)  # (batch, 1, base_time)
     out = tf.matmul(base_weights_bc, base)  # (batch, 1, n_out)
@@ -214,8 +216,8 @@ def main():
       print("step %i, loss:" % step, session.run(loss, feed_dict={x: x_np, targets: targets_np}))
       loss_np_ = session.run(loss_eval, feed_dict={x: x_np, targets: targets_np})
       # print("step %i, loss (eval):" % step, loss_np_)
-      if loss_np_ > loss_np * 2.:
-        print("ERR, loss increased:", loss_np_)
+      if not numpy.isfinite(loss_np_):  # or loss_np_ > loss_np * 2.
+        print("ERR, loss invalid:", loss_np_)
         count_errors += 1
         if count_errors >= 10:
           sys.exit(1)
