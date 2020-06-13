@@ -8,19 +8,37 @@ Following test_rec_subnet_train_t3d_simple from RETURNN.
 
 """
 
+import sys
 import numpy
 import tensorflow as tf
 import better_exchook
 import argparse
 
 
-def add_check_numerics_ops(name="add_check_numerics_ops"):
+# https://stackoverflow.com/questions/53581278/test-if-notebook-is-running-on-google-colab
+IN_COLAB = 'google.colab' in sys.modules
+
+# The checks could increase the memory usage a lot.
+# Ignore some common ops which should not be able to introduce inf/nan.
+CheckNumericsIgnoreOps = {
+  "Add", "AddN", "Sum", "Mul", "MatMul", "Sub", "L2Loss", "Floor", "Neg", "UnsortedSegmentSum",
+  "Switch", "Merge", "PreventGradient",
+  "Select", "Maximum", "Minimum", "Abs", "Sign",
+  "Const", "Identity", "Fill", "ZerosLike",
+  "Reshape", "Tile", "ExpandDims", "ConcatV2", "Transpose",
+  "Slice", "StridedSlice", "StridedSliceGrad", "Gather",
+  "TruncatedNormal", "RandomUniform",
+  "TensorArrayV3"}
+
+
+def add_check_numerics_v1_ops(name="add_check_numerics_ops", verbose=False):
   """
   This is similar to :func:`tf.add_check_numerics_ops` and based on similar code.
   It adds some more logic and options.
   Copied from RETURNN, and simplified.
 
   :param str name: op-name for the final tf.group
+  :param bool verbose:
   :return: operation which performs all the checks
   :rtype: tf.Operation
   """
@@ -33,6 +51,8 @@ def add_check_numerics_ops(name="add_check_numerics_ops"):
     # added, and an op can only be added after its inputs are added.
     for op in ops:
       assert isinstance(op, tf.Operation)
+      if op.type in CheckNumericsIgnoreOps:
+        continue
       # Frames from within a while-loop are partly broken.
       # https://github.com/tensorflow/tensorflow/issues/2211
       # noinspection PyProtectedMember
@@ -43,21 +63,41 @@ def add_check_numerics_ops(name="add_check_numerics_ops"):
           continue
         message = op.name + ":" + str(output.value_index)
         with tf.control_dependencies(check_op):
-          print("add check for:", output, op.type)
+          if verbose:
+            print("add check for:", output, op.type)
           check_op = [tf.compat.v1.check_numerics(output, message=message, name=op.name + "_check_numerics")]
     return tf.group(*check_op)
+
+
+def enable_check_numerics_v2():
+  if tf.__version__.endswith("1."):
+    return
+  from tensorflow.python.debug.lib import check_numerics_callback
+  # The flow value of TensorArray/TensorArrayV3 is uninitalized on GPU,
+  # i.e. can be anything.
+  # https://github.com/tensorflow/tensorflow/blob/v.2.2.0/tensorflow/core/kernels/tensor_array_ops.cc#L143
+  check_numerics_callback.IGNORE_OP_OUTPUTS += (
+    (b"TensorArrayV3", 1),)
+  # Extend the safe/ignore list.
+  for op_type in CheckNumericsIgnoreOps:
+    check_numerics_callback.SAFE_OPS += (op_type.encode("utf8"),)
+  tf.debugging.enable_check_numerics()
 
 
 def main():
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument("--nsteps", type=int, default=-1)
   arg_parser.add_argument("--reset_after_nsteps", type=int, default=-1)
-  args = arg_parser.parse_args()
+  args = arg_parser.parse_args(
+    ["--reset_after_nsteps", "100"] if IN_COLAB else sys.argv[1:])
 
   print("TF version:", tf.__version__)
 
   # tf.compat.v1.disable_eager_execution()
   tf.compat.v1.disable_v2_behavior()
+  # If in Colab, and you run this repeatedly.
+  tf.compat.v1.reset_default_graph()
+  enable_check_numerics_v2()
 
   n_input_dim = 2
   n_classes_dim = 3
@@ -137,7 +177,7 @@ def main():
   opt = tf.compat.v1.train.AdamOptimizer(learning_rate=0.01)  # originally was NadamOptimizer...
   minimize_op = opt.minimize(loss)
 
-  check_op = add_check_numerics_ops()
+  check_op = add_check_numerics_v1_ops()
   with tf.control_dependencies([check_op, minimize_op]):
     loss = tf.identity(loss)
   vars_init_op = tf.compat.v1.global_variables_initializer()
