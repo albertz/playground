@@ -12,4 +12,5 @@
 *.a
 *.dSYM
 .history*
+*.dummy
 /.idea
