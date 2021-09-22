@@ -29,6 +29,19 @@ def check_instance_(obj, type_):
 a_str_ = check_instance_("foo", str)
 
 
+def check_instance__(obj, type_instance):
+    """
+    :param obj:
+    :param (()->T)|type[T] type_instance:
+    :rtype: T
+    """
+    assert isinstance(obj, type_instance)
+    return obj
+
+
+a_str__ = check_instance__("foo", str)
+
+
 # https://youtrack.jetbrains.com/issue/PY-32860
 def check_instance_tuple(obj, types: Iterable[Type[T]]) -> T:
     types = tuple(types)
@@ -36,7 +49,7 @@ def check_instance_tuple(obj, types: Iterable[Type[T]]) -> T:
     return obj
 
 
-a_str__ = check_instance_tuple("foo", [str])
+a_str___ = check_instance_tuple("foo", [str])
 
 
 class A:
