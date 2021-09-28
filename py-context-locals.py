@@ -3,7 +3,6 @@
 # https://github.com/rwth-i6/returnn_common/issues/16#issuecomment-929030603
 
 from contextlib import contextmanager
-import better_exchook
 
 
 @contextmanager
@@ -27,6 +26,7 @@ def loop2(vs):
 
 
 def test2():
+  import better_exchook
   frame = better_exchook.get_current_frame()
   a, b = 1, 2
   with loop2(lambda: frame.f_locals):
@@ -57,6 +57,18 @@ def test3():
   with loop3(locals()) as loop:
     b = b + 1
     loop.exit(locals())
+
+
+def transpile4(func):
+  import tensorflow as tf
+  return func  # TODO ...
+
+
+@transpile4
+def test4():
+  a, b = 1, 2
+  while b < 10:
+    b = b + 1
 
 
 def main():
