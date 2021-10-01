@@ -1,4 +1,7 @@
 
+# https://github.com/rwth-i6/returnn/issues/703
+# https://github.com/tensorflow/tensorflow/issues/52220
+
 
 import tensorflow as tf
 
