@@ -20,6 +20,8 @@ def main():
       def body(i, x):
         return i + 1, x * 1.
 
+      # tf.compat.v1.experimental.output_all_intermediates(True)  # -- this is a possible workaround
+
       j, y = tf.while_loop(cond, body, [0., v])
       loss = tf.reduce_sum(y ** 2)
 
