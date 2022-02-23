@@ -6,20 +6,21 @@ https://en.wikipedia.org/wiki/Bfloat16_floating-point_format
 """
 
 
+from typing import Optional
 import struct
 import tensorflow as tf
 
 
-def dump_float32_struct(x):
-  print(bin(struct.unpack('!i', struct.pack('!f', x))[0]))
+def dump_float32_struct(x, *prefix):
+  print(*prefix, bin(struct.unpack('!i', struct.pack('!f', x))[0]))
 
 
-def dump_float32_tf(x):
-  print(bin(tf.bitcast(tf.cast(x, tf.float32), tf.int32).numpy()))
+def dump_float32_tf(x, *prefix):
+  print(*prefix, bin(tf.bitcast(tf.cast(x, tf.float32), tf.int32).numpy()))
 
 
-def dump_bfloat16_tf(x):
-  print(bin(tf.bitcast(tf.cast(x, tf.bfloat16), tf.int16).numpy()))
+def dump_bfloat16_tf(x, *prefix):
+  print(*prefix, bin(tf.bitcast(tf.cast(x, tf.bfloat16), tf.int16).numpy()))
 
 
 def float32_sign_exp_frac(x):
@@ -49,12 +50,14 @@ def float32_lsb_random_bitflip(x):
   return tf.bitcast(i32, tf.float32)
 
 
-def bfloat16_lsb_random_bitflip(x):
+def bfloat16_lsb_random_bitflip(x, *, bit_flip: Optional[bool] = None):
   i16 = tf.bitcast(tf.cast(x, tf.bfloat16), tf.uint16)
-  bit_flip = tf.cast(
-    tf.less(tf.random.uniform(shape=tf.shape(i16)), 0.5),
-    tf.uint16)
-  print(bit_flip.numpy())
+  if bit_flip is None:
+    bit_flip = tf.cast(
+      tf.less(tf.random.uniform(shape=tf.shape(i16)), 0.5),
+      tf.uint16)
+  else:
+    bit_flip = tf.cast(bit_flip, tf.uint16)
   i16 = tf.bitwise.bitwise_xor(i16, bit_flip)
   return tf.bitcast(i16, tf.bfloat16)
 
@@ -64,11 +67,25 @@ def main():
   while True:
     x = 1.2345
     print("***", x)
-    dump_bfloat16_tf(x)
+    x_f32 = tf.cast(x, tf.float32)
+    print("  float32:", x_f32.numpy())
+    dump_float32_tf(x_f32, "  float32 bin:")
+    x_bf16 = tf.cast(x_f32, tf.bfloat16)
+    print("  bfloat16:", tf.cast(x_bf16, tf.float32).numpy())
+    print("  bfloat16 abs error:",
+          tf.abs(x_f32 - tf.cast(x_bf16, tf.float32)).numpy())
+    print("  bfloat16 rel error:",
+          tf.abs(x_f32 - tf.cast(x_bf16, tf.float32)).numpy() / tf.abs(x_f32).numpy())
+    dump_bfloat16_tf(x_bf16, "  bfloat16 bin:            ")
     # x_ = float32_manual(x)
-    x_ = bfloat16_lsb_random_bitflip(x)
-    print(x_.numpy())
-    dump_bfloat16_tf(x_)
+    x_bf16_rnd_bitflip = bfloat16_lsb_random_bitflip(x_bf16, bit_flip=True)
+    print("  bfloat16 LSB bitflip:", x_bf16_rnd_bitflip.numpy())
+    dump_bfloat16_tf(x_bf16_rnd_bitflip, "  bfloat16 LSB bitflip bin:")
+    print("  bfloat16 LSB bitflip abs error:",
+          tf.abs(x_f32 - tf.cast(x_bf16_rnd_bitflip, tf.float32)).numpy())
+    print("  bfloat16 LSB bitflip rel error:",
+          tf.abs(x_f32 - tf.cast(x_bf16_rnd_bitflip, tf.float32)).numpy() / tf.abs(x_f32).numpy())
+    break
 
 
 if __name__ == '__main__':
