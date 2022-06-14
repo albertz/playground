@@ -10,6 +10,7 @@ https://stackoverflow.com/questions/68266356/extracting-comments-annotations-fro
 
 import argparse
 import PyPDF2
+import subprocess
 
 
 def _cleanup_obj(obj):
@@ -59,8 +60,17 @@ def main():
           if key not in values_by_key:
             values_by_key[key] = set()
           values_by_key[key].add(obj[key])
-        # print(annot, obj)
-
+        # /Rect is left/bottom/right/top
+        rect = obj['/Rect']
+        center = float(rect[0] + rect[2]) / 2, float(rect[1] + rect[3]) / 2
+        # obj["/RectCenter"] = center
+        # obj["/PageNum"] = page_num
+        obj["<synctex>"] = f"{page_num + 1}:{center[0]:.2f}:{center[1]:.2f}"
+        annot.extract_text()
+        # subprocess.getoutput()
+        print(annot, obj)
+    if page_num >= 10:
+      break
   print(values_by_key)
 
 
