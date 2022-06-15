@@ -64,11 +64,8 @@ def main():
         rect[2] + 20, fitz_page.rect[3] - rect[1] + 10)
 
     if "/QuadPoints" in obj:
-      clip = _translate_quad_points(obj["/QuadPoints"])
-    else:
-      clip = _translate_extend_rect(rect)
-
-    obj["<text-ctx>"] = fitz_page.get_text(clip=clip)
+      obj["<text>"] = fitz_page.get_text(clip=_translate_quad_points(obj["/QuadPoints"]))
+    obj["<text-ctx>"] = fitz_page.get_text(clip=_translate_extend_rect(rect))
 
     return obj
 
