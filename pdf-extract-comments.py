@@ -43,9 +43,32 @@ def main():
 
     fitz_page = fitz_doc[page_num]
     assert isinstance(fitz_page, fitz.Page)
-    obj["<text-ctx>"] = fitz_page.get_text(clip=(
-      rect[0] - 20, fitz_page.rect[3] - rect[3] - 10,
-      rect[2] + 20, fitz_page.rect[3] - rect[1] + 10))
+
+    # PyPDF counts y from left-bottom point of the page,
+    # while fitz counts y from left-top.
+
+    # '/QuadPoints': [103.78458, 532.89081, 139.10219, 532.89081, 103.78458, 521.98169, 139.10219, 521.98169]
+    # xy pairs: left-upper, right-upper, left-bottom, right-bottom
+    def _translate_quad_points(pts):
+      # return fitz left,top,right,bottom
+      pts = [float(v) for v in pts]
+      return pts[0] - 1, fitz_page.rect[3] - pts[1], pts[2] + 1, fitz_page.rect[3] - pts[5]
+
+    # '/Rect': [134.13168, 520.65894, 144.07268, 528.75903]
+    # /Rect is left/bottom/right/top
+    # noinspection PyShadowingNames
+    def _translate_extend_rect(rect):
+      # return fitz left,top,right,bottom
+      return (
+        rect[0] - 20, fitz_page.rect[3] - rect[3] - 10,
+        rect[2] + 20, fitz_page.rect[3] - rect[1] + 10)
+
+    if "/QuadPoints" in obj:
+      clip = _translate_quad_points(obj["/QuadPoints"])
+    else:
+      clip = _translate_extend_rect(rect)
+
+    obj["<text-ctx>"] = fitz_page.get_text(clip=clip)
 
     return obj
 
