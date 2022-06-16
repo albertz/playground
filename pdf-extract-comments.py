@@ -63,16 +63,25 @@ def main():
     def _translate_extend_rect(rect):
       # return fitz left,top,right,bottom
       return (
-        rect[0] - 40, fitz_page.rect[3] - rect[3] - 10,
-        rect[2] + 40, fitz_page.rect[3] - rect[1] + 10)
+        rect[0] - 60, fitz_page.rect[3] - rect[3] - 7,
+        rect[2] + 60, fitz_page.rect[3] - rect[1])
 
     def _get_rect_text_ctx():
       rect_ = _translate_extend_rect(rect)
-      full_txt = fitz_page.get_text(clip=rect_).rstrip("\n")
+      full_txt = fitz_page.get_text(clip=rect_)
+      if not full_txt.strip():
+        return ""
+      full_txt = full_txt.replace("\n", " ").strip()
       if obj.get('/Subtype') == '/Caret':
         p = center[0]
-        left_txt = fitz_page.get_text(clip=(rect_[0], rect_[1], p + 1, rect_[3])).rstrip("\n")
-        right_txt = fitz_page.get_text(clip=(p - 2, rect_[1], rect_[2], rect_[3])).rstrip("\n")
+        for w in [0, 1, 2, 3, 4, 5]:
+          left_txt = (
+            fitz_page.get_text(clip=(rect_[0], rect_[1], p + w, rect_[3])).rstrip("\n").replace("\n", " ").lstrip())
+          right_txt = fitz_page.get_text(clip=(p - w, rect_[1], rect_[2], rect_[3])).replace("\n", " ").rstrip()
+          if full_txt == left_txt + right_txt:
+            return left_txt + CaretSym + right_txt
+          if left_txt[-1:] == right_txt[:1] and full_txt == left_txt + right_txt[1:]:
+            return left_txt + CaretSym + right_txt[1:]
         assert full_txt == left_txt + right_txt, f"{full_txt!r} != {left_txt!r} + {right_txt!r}"
         return left_txt + CaretSym + right_txt
       return full_txt
