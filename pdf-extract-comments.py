@@ -14,6 +14,9 @@ import fitz  # brew install mupdf; pip install pymupdf
 import subprocess
 
 
+CaretSym = "‸"
+
+
 def main():
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument("pdf_file", help="PDF file to extract comments from")
@@ -60,12 +63,23 @@ def main():
     def _translate_extend_rect(rect):
       # return fitz left,top,right,bottom
       return (
-        rect[0] - 20, fitz_page.rect[3] - rect[3] - 10,
-        rect[2] + 20, fitz_page.rect[3] - rect[1] + 10)
+        rect[0] - 40, fitz_page.rect[3] - rect[3] - 10,
+        rect[2] + 40, fitz_page.rect[3] - rect[1] + 10)
+
+    def _get_rect_text_ctx():
+      rect_ = _translate_extend_rect(rect)
+      full_txt = fitz_page.get_text(clip=rect_).rstrip("\n")
+      if obj.get('/Subtype') == '/Caret':
+        p = center[0]
+        left_txt = fitz_page.get_text(clip=(rect_[0], rect_[1], p + 1, rect_[3])).rstrip("\n")
+        right_txt = fitz_page.get_text(clip=(p - 2, rect_[1], rect_[2], rect_[3])).rstrip("\n")
+        assert full_txt == left_txt + right_txt, f"{full_txt!r} != {left_txt!r} + {right_txt!r}"
+        return left_txt + CaretSym + right_txt
+      return full_txt
 
     if "/QuadPoints" in obj:
-      obj["<text>"] = fitz_page.get_text(clip=_translate_quad_points(obj["/QuadPoints"]))
-    obj["<text-ctx>"] = fitz_page.get_text(clip=_translate_extend_rect(rect))
+      obj["<text>"] = fitz_page.get_text(clip=_translate_quad_points(obj["/QuadPoints"])).rstrip("\n")
+    obj["<text-ctx>"] = _get_rect_text_ctx()
 
     return obj
 
