@@ -71,18 +71,18 @@ def main():
       full_txt = fitz_page.get_text(clip=rect_)
       if not full_txt.strip():
         return ""
-      full_txt = full_txt.replace("\n", " ").strip()
+      full_txt = full_txt.replace("\n", " ").rstrip()
       if obj.get('/Subtype') == '/Caret':
         p = center[0]
-        for w in [0, 1, 2, 3, 4, 5]:
+        for w in [0, 1, 2, 3, 4, 5, 2]:
           left_txt = (
-            fitz_page.get_text(clip=(rect_[0], rect_[1], p + w, rect_[3])).rstrip("\n").replace("\n", " ").lstrip())
+            fitz_page.get_text(clip=(rect_[0], rect_[1], p + w, rect_[3])).rstrip("\n").replace("\n", " "))
           right_txt = fitz_page.get_text(clip=(p - w, rect_[1], rect_[2], rect_[3])).replace("\n", " ").rstrip()
           if full_txt == left_txt + right_txt:
             return left_txt + CaretSym + right_txt
           if left_txt[-1:] == right_txt[:1] and full_txt == left_txt + right_txt[1:]:
             return left_txt + CaretSym + right_txt[1:]
-        assert full_txt == left_txt + right_txt, f"{full_txt!r} != {left_txt!r} + {right_txt!r}"
+        assert full_txt == left_txt + right_txt, f"{full_txt!r} != {left_txt!r} + {right_txt!r}; obj {obj!r}"
         return left_txt + CaretSym + right_txt
       return full_txt
 
