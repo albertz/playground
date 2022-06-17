@@ -15,6 +15,7 @@ import subprocess
 
 
 CaretSym = "‸"
+_Debug = False
 
 
 def main():
@@ -38,17 +39,16 @@ def main():
     ]:
       obj.pop(name, None)
 
-    # /Rect is left/bottom/right/top
-    rect = [float(v) for v in obj['/Rect']]
-    center = float(rect[0] + rect[2]) / 2, float(rect[1] + rect[3]) / 2
-    obj["<synctex>"] = f"{page_num + 1}:{center[0]:.2f}:{center[1]:.2f}"
-    # subprocess.getoutput()
-
+    # PyPDF counts y from left-bottom point of the page,
+    # while fitz counts y from left-top.
     fitz_page = fitz_doc[page_num]
     assert isinstance(fitz_page, fitz.Page)
 
-    # PyPDF counts y from left-bottom point of the page,
-    # while fitz counts y from left-top.
+    # /Rect is left/bottom/right/top
+    rect = [float(v) for v in obj['/Rect']]
+    center = float(rect[0] + rect[2]) / 2, float(rect[1] + rect[3]) / 2
+    obj["<synctex>"] = f"{page_num + 1}:{center[0]:.2f}:{fitz_page.rect[3] - center[1]:.2f}"
+    # subprocess.getoutput()
 
     # '/QuadPoints': [103.78458, 532.89081, 139.10219, 532.89081, 103.78458, 521.98169, 139.10219, 521.98169]
     # xy pairs: left-upper, right-upper, left-bottom, right-bottom
@@ -57,17 +57,24 @@ def main():
       pts = [float(v) for v in pts]
       return pts[0] - 1, fitz_page.rect[3] - pts[1], pts[2] + 1, fitz_page.rect[3] - pts[5]
 
+    ctx_w = 60
+
     # '/Rect': [134.13168, 520.65894, 144.07268, 528.75903]
     # /Rect is left/bottom/right/top
     # noinspection PyShadowingNames
     def _translate_extend_rect(rect):
       # return fitz left,top,right,bottom
       return (
-        rect[0] - 60, fitz_page.rect[3] - rect[3] - 7,
-        rect[2] + 60, fitz_page.rect[3] - rect[1])
+        rect[0] - ctx_w, fitz_page.rect[3] - rect[3] - 7,
+        rect[2] + ctx_w, fitz_page.rect[3] - rect[1])
 
     def _get_rect_text_ctx():
-      rect_ = _translate_extend_rect(rect)
+      if "/QuadPoints" in obj:
+        rect_ = list(_translate_quad_points(obj["/QuadPoints"]))
+        rect_[0] -= ctx_w
+        rect_[2] += ctx_w
+      else:
+        rect_ = _translate_extend_rect(rect)
       full_txt = fitz_page.get_text(clip=rect_)
       if not full_txt.strip():
         return ""
@@ -90,10 +97,14 @@ def main():
       obj["<text>"] = fitz_page.get_text(clip=_translate_quad_points(obj["/QuadPoints"])).rstrip("\n")
     obj["<text-ctx>"] = _get_rect_text_ctx()
 
+    if not _Debug:
+      obj.pop("/QuadPoints", None)
+      obj.pop("/Rect", None)
+
     return obj
 
   def _handle_page(page_num):
-    print("*** page:", page_num)
+    print("*** page:", page_num + 1)  # in code 0-indexed, while all apps (esp PDF viewers) use 1-index base
     pypdf2_page = pypdf2_doc.pages[page_num]
     assert isinstance(pypdf2_page, PyPDF2.PageObject)
     if "/Annots" not in pypdf2_page:
