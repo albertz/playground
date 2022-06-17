@@ -52,10 +52,20 @@ def main():
 
     # '/QuadPoints': [103.78458, 532.89081, 139.10219, 532.89081, 103.78458, 521.98169, 139.10219, 521.98169]
     # xy pairs: left-upper, right-upper, left-bottom, right-bottom
-    def _translate_quad_points(pts):
+    def _translate_quad_points(pts, o=0):
       # return fitz left,top,right,bottom
       pts = [float(v) for v in pts]
-      return pts[0] - 1, fitz_page.rect[3] - pts[1], pts[2] + 1, fitz_page.rect[3] - pts[5]
+      return pts[o + 0] - 1, fitz_page.rect[3] - pts[o + 1], pts[o + 2] + 1, fitz_page.rect[3] - pts[o + 5]
+
+    def _get_quad_points_txt():
+      pts = obj["/QuadPoints"]
+      assert len(pts) % 8 == 0, f"{pts=}, {len(pts)=}"
+      n = len(pts) // 8
+      lines = []
+      for i in range(n):
+        clip = _translate_quad_points(pts, i * 8)
+        lines.append(fitz_page.get_text(clip=clip).rstrip("\n"))
+      return " ".join(lines)
 
     ctx_w = 60
 
@@ -68,12 +78,21 @@ def main():
         rect[0] - ctx_w, fitz_page.rect[3] - rect[3] - 7,
         rect[2] + ctx_w, fitz_page.rect[3] - rect[1])
 
-    def _get_rect_text_ctx():
+    def _get_rect_text_ctx(o=None):
       if "/QuadPoints" in obj:
-        rect_ = list(_translate_quad_points(obj["/QuadPoints"]))
+        if o is None:
+          assert len(obj["/QuadPoints"]) % 8 == 0
+          if len(obj["/QuadPoints"]) > 8:
+            lines = []
+            for i in range(len(obj["/QuadPoints"]) // 8):
+              lines.append(_get_rect_text_ctx(o=i * 8))
+            return " ".join(lines)
+          o = 0
+        rect_ = list(_translate_quad_points(obj["/QuadPoints"], o=o))
         rect_[0] -= ctx_w
         rect_[2] += ctx_w
       else:
+        assert o is None
         rect_ = _translate_extend_rect(rect)
       full_txt = fitz_page.get_text(clip=rect_)
       if not full_txt.strip():
@@ -94,7 +113,7 @@ def main():
       return full_txt
 
     if "/QuadPoints" in obj:
-      obj["<text>"] = fitz_page.get_text(clip=_translate_quad_points(obj["/QuadPoints"])).rstrip("\n")
+      obj["<text>"] = _get_quad_points_txt()
     obj["<text-ctx>"] = _get_rect_text_ctx()
 
     if not _Debug:
@@ -137,11 +156,14 @@ def main():
         values_by_key[key].add(obj[key])
       print(annot, obj)
 
-  if args.page is not None:
-    _handle_page(args.page)
-  else:
+  def _handle_all_pages():
     for i in range(pypdf2_doc.numPages):
       _handle_page(i)
+
+  if args.page is not None:
+    _handle_page(args.page - 1)
+  else:
+    _handle_all_pages()
 
   print(values_by_key)
 
