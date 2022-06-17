@@ -144,9 +144,7 @@ def main():
     tex_center_line = None
     if args.synctex:
       page_synctex = f"{page_num + 1}:{fitz_page.rect[2] / 2:.2f}:{fitz_page.rect[3] / 2:.2f}"
-      synctex_cmd = [
-        "synctex", "edit", "-o", f"{page_synctex}:{args.synctex}"
-      ]
+      synctex_cmd = ["synctex", "edit", "-o", f"{page_synctex}:{args.synctex}"]
       for line in subprocess.check_output(synctex_cmd).splitlines():
         if line.startswith(b"Input:"):
           tex_file = line[len("Input:"):].decode("utf8")
