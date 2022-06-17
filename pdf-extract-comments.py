@@ -21,6 +21,7 @@ _Debug = False
 def main():
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument("pdf_file", help="PDF file to extract comments from")
+  arg_parser.add_argument("--synctex", help="(PDF) file for synctex")
   arg_parser.add_argument("--page", type=int)
   args = arg_parser.parse_args()
 
@@ -29,7 +30,7 @@ def main():
 
   values_by_key = {}
 
-  def _cleanup_obj(page_num, obj):
+  def _cleanup_obj(page_num, fitz_page, obj):
     # Drop some keys that are not useful for us.
     for name in [
       '/AP', "/F", "/N", "/NM", '/CreationDate', '/M', "/Open", '/BM',
@@ -41,8 +42,6 @@ def main():
 
     # PyPDF counts y from left-bottom point of the page,
     # while fitz counts y from left-top.
-    fitz_page = fitz_doc[page_num]
-    assert isinstance(fitz_page, fitz.Page)
 
     # /Rect is left/bottom/right/top
     rect = [float(v) for v in obj['/Rect']]
@@ -128,6 +127,33 @@ def main():
     assert isinstance(pypdf2_page, PyPDF2.PageObject)
     if "/Annots" not in pypdf2_page:
       return
+    fitz_page = fitz_doc[page_num]
+    assert isinstance(fitz_page, fitz.Page)
+
+    page_txt = fitz_page.get_text()
+    page_txt = page_txt.replace("\n", " ")
+    page_txt = page_txt.replace("¨a", "ä")
+    page_txt = page_txt.replace("¨o", "ö")
+    page_txt = page_txt.replace("¨u", "ü")
+    page_txt = page_txt.replace("´e", "é")
+    page_txt = page_txt.replace("´a", "á")
+    page_txt = page_txt.replace("´s", "ś")
+    print(page_txt)
+
+    tex_file = None
+    tex_center_line = None
+    if args.synctex:
+      page_synctex = f"{page_num + 1}:{fitz_page.rect[2] / 2:.2f}:{fitz_page.rect[3] / 2:.2f}"
+      synctex_cmd = [
+        "synctex", "edit", "-o", f"{page_synctex}:{args.synctex}"
+      ]
+      for line in subprocess.check_output(synctex_cmd).splitlines():
+        if line.startswith(b"Input:"):
+          tex_file = line[len("Input:"):].decode("utf8")
+        elif line.startswith(b"Line:"):
+          tex_center_line = int(line[len("Line:"):].decode("utf8"))
+      print("Tex file:", tex_file, ", center line:", tex_center_line)
+
     visited_irt = set()
     for annot in pypdf2_page["/Annots"]:
       obj = dict(annot.get_object())
@@ -139,11 +165,11 @@ def main():
       # Use simple generic rule: Skip if we have seen it via /IRT before.
       if annot.idnum in visited_irt:
         continue
-      _cleanup_obj(page_num, obj)
+      _cleanup_obj(page_num, fitz_page, obj)
       if obj.get('/IRT'):
         visited_irt.add(obj['/IRT'].idnum)
         irt_obj = dict(obj['/IRT'].get_object())
-        _cleanup_obj(page_num, irt_obj)
+        _cleanup_obj(page_num, fitz_page, irt_obj)
         # Some further cleanup
         for name in ['/Subj', '/Subtype', '/T', '/IT']:
           irt_obj.pop(name, None)
