@@ -8,10 +8,13 @@ https://stackoverflow.com/questions/68266356/extracting-comments-annotations-fro
 
 """
 
+from __future__ import annotations
 import argparse
 import PyPDF2  # pip install PyPDF2
 import fitz  # brew install mupdf; pip install pymupdf
 import subprocess
+from dataclasses import dataclass, field
+import better_exchook
 
 
 CaretSym = "‸"
@@ -131,6 +134,8 @@ def main():
     assert isinstance(fitz_page, fitz.Page)
 
     page_txt = fitz_page.get_text()
+    assert isinstance(page_txt, str)
+    page_txt_num_lines = page_txt.count("\n")
     page_txt = page_txt.replace("\n", " ")
     page_txt = page_txt.replace("¨a", "ä")
     page_txt = page_txt.replace("¨o", "ö")
@@ -138,6 +143,7 @@ def main():
     page_txt = page_txt.replace("´e", "é")
     page_txt = page_txt.replace("´a", "á")
     page_txt = page_txt.replace("´s", "ś")
+    page_txt = page_txt.replace("ﬁ", "fi")
     print(page_txt)
 
     tex_file = None
@@ -151,6 +157,23 @@ def main():
         elif line.startswith(b"Line:"):
           tex_center_line = int(line[len("Line:"):].decode("utf8"))
       print("Tex file:", tex_file, ", center line:", tex_center_line)
+
+      lines = open(tex_file, encoding="utf8").readlines()
+      w = page_txt_num_lines * 2
+      line_start = max(tex_center_line - w, 0)
+      line_end = min(tex_center_line + w + 1, len(lines))
+      tex_selected_txt = "".join(lines[line_start:line_end])
+      edits = levenshtein_alignment(page_txt, tex_selected_txt)
+      for edit in edits.edits:
+        if edit.insert == edit.delete:
+          print(f"={edit.insert!r}")
+        elif edit.insert and edit.delete:
+          print(f"-{edit.delete!r} +{edit.insert!r}")
+        else:
+          if edit.delete:
+            print(f"-{edit.delete!r}")
+          if edit.insert:
+            print(f"+{edit.insert!r}")
 
     visited_irt = set()
     for annot in pypdf2_page["/Annots"]:
@@ -192,7 +215,115 @@ def main():
   print(values_by_key)
 
 
+@dataclass
+class Edit:
+  """
+  Edit.
+  """
+  insert: str = ""  # insert or replace if len(delete) = len(insert)
+  delete: str = ""
+
+  @classmethod
+  def make_empty(cls) -> Edit:
+    """
+    :return: empty
+    """
+    return Edit()
+
+  def char_len(self):
+    """
+    :return: number of edits on char level
+    """
+    if self.insert == self.delete:
+      return 0
+    return max(len(self.delete), len(self.insert))
+
+  def merge_class(self):
+    """
+    :return: whatever such that if self.merge_class() == other.merge_class(), we should merge them
+    """
+    return bool(self.insert), bool(self.delete), self.insert == self.delete
+
+
+@dataclass
+class EditList:
+  """
+  list of edits. also keeps track of total num of char edits
+  """
+  edits: list[Edit] = field(default_factory=list)
+  char_len: int = 0
+
+  @classmethod
+  def make_empty(cls) -> EditList:
+    """
+    :return: empty
+    """
+    return EditList(edits=[], char_len=0)
+
+  def add_left(self, edit: Edit):
+    """
+    Modify inplace, edit + self.
+    """
+    if not self.edits:
+      self.edits.append(edit)
+      self.char_len = edit.char_len()
+      return
+    edit0 = self.edits[0]
+    if edit0.merge_class() == edit.merge_class():
+      edit0.insert = edit.insert + edit0.insert
+      edit0.delete = edit.delete + edit0.delete
+    else:
+      self.edits.insert(0, edit)
+    if edit.insert != edit.delete:
+      self.char_len += edit.char_len()
+
+
+def levenshtein_alignment(source: str, target: str) -> EditList:
+  """
+  get minimal list of edits to transform source to target
+  """
+  # loop over target pos
+  # Build matrix target * source.
+  # Start with initial for each source pos
+  # list of list of tuple (num total edits, backref, add, del)
+  # backref: 0: above, 1: left-above, 2: left
+  m = [(0, -1, "", "")]  # initial
+  for j in range(1, len(source) + 1):
+    m.append((m[-1][0] + 1, 0, source[j - 1], ""))  # add
+  ms = [m]
+  for i in range(1, len(target) + 1):
+    m = [(ms[-1][0][0] + 1, 2, "", target[i - 1])]  # j=0, del
+    for j in range(1, len(source) + 1):
+      # 3 cases:
+      opts = (
+        (m[-1][0] + 1, 0, source[j - 1], ""),  # add
+        (ms[-1][j - 1][0] + int(source[j - 1] != target[i - 1]), 1, source[j - 1], target[i - 1]),  # replace or keep
+        (ms[-1][j][0] + 1, 2, "", target[i - 1])  # del
+      )
+      m.append(min(opts))
+    ms.append(m)
+  # build edit list, going through backrefs
+  i, j = len(target), len(source)
+  total_num_edits = ms[i][j][0]
+  ls = EditList.make_empty()
+  while i > 0 or j > 0:
+    _, backref, add, del_ = ms[i][j]
+    ls.add_left(Edit(insert=add, delete=del_))
+    if backref == 0:
+      j -= 1
+    elif backref == 1:
+      i -= 1
+      j -= 1
+    elif backref == 2:
+      i -= 1
+    else:
+      assert backref in {0, 1, 2}, f"invalid backref {backref}"
+  assert ls.char_len == total_num_edits
+  return ls
+
+
 if __name__ == "__main__":
+  better_exchook.install()
   main()
 
 
