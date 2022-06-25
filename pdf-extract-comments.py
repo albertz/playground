@@ -43,36 +43,6 @@ def main():
     _handle_all_pages()
 
 
-@dataclass
-class Edit:
-  """
-  Edit.
-  """
-  insert: str = ""  # insert or replace if len(delete) = len(insert)
-  delete: str = ""
-
-  @classmethod
-  def make_empty(cls) -> Edit:
-    """
-    :return: empty
-    """
-    return Edit()
-
-  def char_len(self):
-    """
-    :return: number of edits on char level
-    """
-    if self.insert == self.delete:
-      return 0
-    return max(len(self.delete), len(self.insert))
-
-  def merge_class(self):
-    """
-    :return: whatever such that if self.merge_class() == other.merge_class(), we should merge them
-    """
-    return bool(self.insert), bool(self.delete), self.insert == self.delete
-
-
 class Env:
   def __init__(self, args):
     self.args = args
@@ -250,6 +220,36 @@ def _text_replace(page_txt: str) -> str:
   page_txt = page_txt.replace("´s", "ś")
   page_txt = page_txt.replace("ﬁ", "fi")
   return page_txt
+
+
+@dataclass
+class Edit:
+  """
+  Edit.
+  """
+  insert: str = ""  # insert or replace if len(delete) = len(insert)
+  delete: str = ""
+
+  @classmethod
+  def make_empty(cls) -> Edit:
+    """
+    :return: empty
+    """
+    return Edit()
+
+  def char_len(self):
+    """
+    :return: number of edits on char level
+    """
+    if self.insert == self.delete:
+      return 0
+    return max(len(self.delete), len(self.insert))
+
+  def merge_class(self):
+    """
+    :return: whatever such that if self.merge_class() == other.merge_class(), we should merge them
+    """
+    return bool(self.insert), bool(self.delete), self.insert == self.delete
 
 
 @dataclass
