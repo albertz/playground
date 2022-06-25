@@ -28,12 +28,166 @@ def main():
   arg_parser.add_argument("--page", type=int)
   args = arg_parser.parse_args()
 
-  pypdf2_doc = PyPDF2.PdfReader(args.pdf_file)
-  fitz_doc = fitz.open(args.pdf_file)
+  env = Env(args)
 
-  values_by_key = {}
+  def _handle_page(page_num):
+    Page(env=env, page_num=page_num)
 
-  def _cleanup_obj(page_num, fitz_page, obj):
+  def _handle_all_pages():
+    for i in range(env.pypdf2_doc.numPages):
+      _handle_page(i)
+
+  if args.page is not None:
+    _handle_page(args.page - 1)
+  else:
+    _handle_all_pages()
+
+
+@dataclass
+class Edit:
+  """
+  Edit.
+  """
+  insert: str = ""  # insert or replace if len(delete) = len(insert)
+  delete: str = ""
+
+  @classmethod
+  def make_empty(cls) -> Edit:
+    """
+    :return: empty
+    """
+    return Edit()
+
+  def char_len(self):
+    """
+    :return: number of edits on char level
+    """
+    if self.insert == self.delete:
+      return 0
+    return max(len(self.delete), len(self.insert))
+
+  def merge_class(self):
+    """
+    :return: whatever such that if self.merge_class() == other.merge_class(), we should merge them
+    """
+    return bool(self.insert), bool(self.delete), self.insert == self.delete
+
+
+@dataclass
+class EditList:
+  """
+  list of edits. also keeps track of total num of char edits
+  """
+  edits: list[Edit] = field(default_factory=list)
+  char_len: int = 0
+
+  @classmethod
+  def make_empty(cls) -> EditList:
+    """
+    :return: empty
+    """
+    return EditList(edits=[], char_len=0)
+
+  def add_left(self, edit: Edit):
+    """
+    Modify inplace, edit + self.
+    """
+    if not self.edits:
+      self.edits.append(edit)
+      self.char_len = edit.char_len()
+      return
+    edit0 = self.edits[0]
+    if edit0.merge_class() == edit.merge_class():
+      edit0.insert = edit.insert + edit0.insert
+      edit0.delete = edit.delete + edit0.delete
+    else:
+      self.edits.insert(0, edit)
+    if edit.insert != edit.delete:
+      self.char_len += edit.char_len()
+
+
+class Env:
+  def __init__(self, args):
+    self.args = args
+    self.pypdf2_doc = PyPDF2.PdfReader(args.pdf_file)
+    self.fitz_doc = fitz.open(args.pdf_file)
+
+
+class Page:
+  def __init__(self, *, env: Env, page_num: int):
+    print("*** page:", page_num + 1)  # in code 0-indexed, while all apps (esp PDF viewers) use 1-index base
+    pypdf2_page = env.pypdf2_doc.pages[page_num]
+    assert isinstance(pypdf2_page, PyPDF2.PageObject)
+    if "/Annots" not in pypdf2_page:
+      return
+    fitz_page = env.fitz_doc[page_num]
+    assert isinstance(fitz_page, fitz.Page)
+
+    page_txt = fitz_page.get_text()
+    assert isinstance(page_txt, str)
+    page_txt_num_lines = page_txt.count("\n")
+    page_txt = page_txt.replace("\n", " ")
+    page_txt = page_txt.replace("¨a", "ä")
+    page_txt = page_txt.replace("¨o", "ö")
+    page_txt = page_txt.replace("¨u", "ü")
+    page_txt = page_txt.replace("´e", "é")
+    page_txt = page_txt.replace("´a", "á")
+    page_txt = page_txt.replace("´s", "ś")
+    page_txt = page_txt.replace("ﬁ", "fi")
+    print(page_txt)
+
+    tex_file = None
+    tex_center_line = None
+    if env.args.synctex:
+      page_synctex = f"{page_num + 1}:{fitz_page.rect[2] / 2:.2f}:{fitz_page.rect[3] / 2:.2f}"
+      synctex_cmd = ["synctex", "edit", "-o", f"{page_synctex}:{env.args.synctex}"]
+      for line in subprocess.check_output(synctex_cmd).splitlines():
+        if line.startswith(b"Input:"):
+          tex_file = line[len("Input:"):].decode("utf8")
+        elif line.startswith(b"Line:"):
+          tex_center_line = int(line[len("Line:"):].decode("utf8"))
+      print("Tex file:", tex_file, ", center line:", tex_center_line)
+
+      lines = open(tex_file, encoding="utf8").readlines()
+      w = page_txt_num_lines * 2
+      line_start = max(tex_center_line - w, 0)
+      line_end = min(tex_center_line + w + 1, len(lines))
+      tex_selected_txt = "".join(lines[line_start:line_end])
+      edits = levenshtein_alignment(page_txt, tex_selected_txt)
+      for edit in edits.edits:
+        if edit.insert == edit.delete:
+          print(f"={edit.insert!r}")
+        elif edit.insert and edit.delete:
+          print(f"-{edit.delete!r} +{edit.insert!r}")
+        else:
+          if edit.delete:
+            print(f"-{edit.delete!r}")
+          if edit.insert:
+            print(f"+{edit.insert!r}")
+
+    visited_irt = set()
+    for annot in pypdf2_page["/Annots"]:
+      obj = dict(annot.get_object())
+      if obj["/Subtype"] == "/Link":
+        continue
+      if obj['/Subtype'] == '/Popup':  # popup object itself does not have the information
+        continue
+      # /Subtype == /Caret could be a duplicate but not always.
+      # Use simple generic rule: Skip if we have seen it via /IRT before.
+      if annot.idnum in visited_irt:
+        continue
+      self._cleanup_obj(fitz_page, obj)
+      if obj.get('/IRT'):
+        visited_irt.add(obj['/IRT'].idnum)
+        irt_obj = dict(obj['/IRT'].get_object())
+        self._cleanup_obj(fitz_page, irt_obj)
+        # Some further cleanup
+        for name in ['/Subj', '/Subtype', '/T', '/IT']:
+          irt_obj.pop(name, None)
+        obj['/IRT'] = irt_obj
+      print(annot, obj)
+
+  def _cleanup_obj(self, fitz_page, obj):
     # Drop some keys that are not useful for us.
     for name in [
       '/AP', "/F", "/N", "/NM", '/CreationDate', '/M', "/Open", '/BM',
@@ -49,7 +203,7 @@ def main():
     # /Rect is left/bottom/right/top
     rect = [float(v) for v in obj['/Rect']]
     center = float(rect[0] + rect[2]) / 2, float(rect[1] + rect[3]) / 2
-    obj["<synctex>"] = f"{page_num + 1}:{center[0]:.2f}:{fitz_page.rect[3] - center[1]:.2f}"
+    # obj["<synctex>"] = f"{page_num + 1}:{center[0]:.2f}:{fitz_page.rect[3] - center[1]:.2f}"
     # subprocess.getoutput()
 
     # '/QuadPoints': [103.78458, 532.89081, 139.10219, 532.89081, 103.78458, 521.98169, 139.10219, 521.98169]
@@ -123,159 +277,6 @@ def main():
       obj.pop("/Rect", None)
 
     return obj
-
-  def _handle_page(page_num):
-    print("*** page:", page_num + 1)  # in code 0-indexed, while all apps (esp PDF viewers) use 1-index base
-    pypdf2_page = pypdf2_doc.pages[page_num]
-    assert isinstance(pypdf2_page, PyPDF2.PageObject)
-    if "/Annots" not in pypdf2_page:
-      return
-    fitz_page = fitz_doc[page_num]
-    assert isinstance(fitz_page, fitz.Page)
-
-    page_txt = fitz_page.get_text()
-    assert isinstance(page_txt, str)
-    page_txt_num_lines = page_txt.count("\n")
-    page_txt = page_txt.replace("\n", " ")
-    page_txt = page_txt.replace("¨a", "ä")
-    page_txt = page_txt.replace("¨o", "ö")
-    page_txt = page_txt.replace("¨u", "ü")
-    page_txt = page_txt.replace("´e", "é")
-    page_txt = page_txt.replace("´a", "á")
-    page_txt = page_txt.replace("´s", "ś")
-    page_txt = page_txt.replace("ﬁ", "fi")
-    print(page_txt)
-
-    tex_file = None
-    tex_center_line = None
-    if args.synctex:
-      page_synctex = f"{page_num + 1}:{fitz_page.rect[2] / 2:.2f}:{fitz_page.rect[3] / 2:.2f}"
-      synctex_cmd = ["synctex", "edit", "-o", f"{page_synctex}:{args.synctex}"]
-      for line in subprocess.check_output(synctex_cmd).splitlines():
-        if line.startswith(b"Input:"):
-          tex_file = line[len("Input:"):].decode("utf8")
-        elif line.startswith(b"Line:"):
-          tex_center_line = int(line[len("Line:"):].decode("utf8"))
-      print("Tex file:", tex_file, ", center line:", tex_center_line)
-
-      lines = open(tex_file, encoding="utf8").readlines()
-      w = page_txt_num_lines * 2
-      line_start = max(tex_center_line - w, 0)
-      line_end = min(tex_center_line + w + 1, len(lines))
-      tex_selected_txt = "".join(lines[line_start:line_end])
-      edits = levenshtein_alignment(page_txt, tex_selected_txt)
-      for edit in edits.edits:
-        if edit.insert == edit.delete:
-          print(f"={edit.insert!r}")
-        elif edit.insert and edit.delete:
-          print(f"-{edit.delete!r} +{edit.insert!r}")
-        else:
-          if edit.delete:
-            print(f"-{edit.delete!r}")
-          if edit.insert:
-            print(f"+{edit.insert!r}")
-
-    visited_irt = set()
-    for annot in pypdf2_page["/Annots"]:
-      obj = dict(annot.get_object())
-      if obj["/Subtype"] == "/Link":
-        continue
-      if obj['/Subtype'] == '/Popup':  # popup object itself does not have the information
-        continue
-      # /Subtype == /Caret could be a duplicate but not always.
-      # Use simple generic rule: Skip if we have seen it via /IRT before.
-      if annot.idnum in visited_irt:
-        continue
-      _cleanup_obj(page_num, fitz_page, obj)
-      if obj.get('/IRT'):
-        visited_irt.add(obj['/IRT'].idnum)
-        irt_obj = dict(obj['/IRT'].get_object())
-        _cleanup_obj(page_num, fitz_page, irt_obj)
-        # Some further cleanup
-        for name in ['/Subj', '/Subtype', '/T', '/IT']:
-          irt_obj.pop(name, None)
-        obj['/IRT'] = irt_obj
-      for key in ['/Subj', '/Subtype', '/T']:
-        if key not in obj:
-          continue
-        if key not in values_by_key:
-          values_by_key[key] = set()
-        values_by_key[key].add(obj[key])
-      print(annot, obj)
-
-  def _handle_all_pages():
-    for i in range(pypdf2_doc.numPages):
-      _handle_page(i)
-
-  if args.page is not None:
-    _handle_page(args.page - 1)
-  else:
-    _handle_all_pages()
-
-  print(values_by_key)
-
-
-@dataclass
-class Edit:
-  """
-  Edit.
-  """
-  insert: str = ""  # insert or replace if len(delete) = len(insert)
-  delete: str = ""
-
-  @classmethod
-  def make_empty(cls) -> Edit:
-    """
-    :return: empty
-    """
-    return Edit()
-
-  def char_len(self):
-    """
-    :return: number of edits on char level
-    """
-    if self.insert == self.delete:
-      return 0
-    return max(len(self.delete), len(self.insert))
-
-  def merge_class(self):
-    """
-    :return: whatever such that if self.merge_class() == other.merge_class(), we should merge them
-    """
-    return bool(self.insert), bool(self.delete), self.insert == self.delete
-
-
-@dataclass
-class EditList:
-  """
-  list of edits. also keeps track of total num of char edits
-  """
-  edits: list[Edit] = field(default_factory=list)
-  char_len: int = 0
-
-  @classmethod
-  def make_empty(cls) -> EditList:
-    """
-    :return: empty
-    """
-    return EditList(edits=[], char_len=0)
-
-  def add_left(self, edit: Edit):
-    """
-    Modify inplace, edit + self.
-    """
-    if not self.edits:
-      self.edits.append(edit)
-      self.char_len = edit.char_len()
-      return
-    edit0 = self.edits[0]
-    if edit0.merge_class() == edit.merge_class():
-      edit0.insert = edit.insert + edit0.insert
-      edit0.delete = edit.delete + edit0.delete
-    else:
-      self.edits.insert(0, edit)
-    if edit.insert != edit.delete:
-      self.char_len += edit.char_len()
 
 
 def levenshtein_alignment(source: str, target: str) -> EditList:
