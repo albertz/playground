@@ -73,39 +73,6 @@ class Edit:
     return bool(self.insert), bool(self.delete), self.insert == self.delete
 
 
-@dataclass
-class EditList:
-  """
-  list of edits. also keeps track of total num of char edits
-  """
-  edits: list[Edit] = field(default_factory=list)
-  char_len: int = 0
-
-  @classmethod
-  def make_empty(cls) -> EditList:
-    """
-    :return: empty
-    """
-    return EditList(edits=[], char_len=0)
-
-  def add_left(self, edit: Edit):
-    """
-    Modify inplace, edit + self.
-    """
-    if not self.edits:
-      self.edits.append(edit)
-      self.char_len = edit.char_len()
-      return
-    edit0 = self.edits[0]
-    if edit0.merge_class() == edit.merge_class():
-      edit0.insert = edit.insert + edit0.insert
-      edit0.delete = edit.delete + edit0.delete
-    else:
-      self.edits.insert(0, edit)
-    if edit.insert != edit.delete:
-      self.char_len += edit.char_len()
-
-
 class Env:
   def __init__(self, args):
     self.args = args
@@ -283,6 +250,39 @@ def _text_replace(page_txt: str) -> str:
   page_txt = page_txt.replace("´s", "ś")
   page_txt = page_txt.replace("ﬁ", "fi")
   return page_txt
+
+
+@dataclass
+class EditList:
+  """
+  list of edits. also keeps track of total num of char edits
+  """
+  edits: list[Edit] = field(default_factory=list)
+  char_len: int = 0
+
+  @classmethod
+  def make_empty(cls) -> EditList:
+    """
+    :return: empty
+    """
+    return EditList(edits=[], char_len=0)
+
+  def add_left(self, edit: Edit):
+    """
+    Modify inplace, edit + self.
+    """
+    if not self.edits:
+      self.edits.append(edit)
+      self.char_len = edit.char_len()
+      return
+    edit0 = self.edits[0]
+    if edit0.merge_class() == edit.merge_class():
+      edit0.insert = edit.insert + edit0.insert
+      edit0.delete = edit.delete + edit0.delete
+    else:
+      self.edits.insert(0, edit)
+    if edit.insert != edit.delete:
+      self.char_len += edit.char_len()
 
 
 def levenshtein_alignment(source: str, target: str) -> EditList:
