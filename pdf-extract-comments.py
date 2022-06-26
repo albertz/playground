@@ -98,6 +98,7 @@ class Page:
             print(f"-{edit.delete!r}")
           if edit.insert:
             print(f"+{edit.insert!r}")
+    self._tex_file = tex_file
 
     visited_irt = set()
     for annot in pypdf2_page["/Annots"]:
@@ -160,13 +161,13 @@ class Page:
     # '/Rect': [134.13168, 520.65894, 144.07268, 528.75903]
     # /Rect is left/bottom/right/top
     # noinspection PyShadowingNames
-    def _translate_extend_rect(rect, ctx_w: int):
+    def _translate_extend_rect(rect, ctx_w: float = 0):
       # return fitz left,top,right,bottom
       return (
         rect[0] - ctx_w, fitz_page.rect[3] - rect[3] - 7,
         rect[2] + ctx_w, fitz_page.rect[3] - rect[1])
 
-    def _get_rect_text_ctx(*, o=None, ctx_w: int):
+    def _get_rect_text_ctx(*, o=None, ctx_w: float):
       if "/QuadPoints" in obj:
         if o is None:
           assert len(obj["/QuadPoints"]) % 8 == 0
@@ -202,7 +203,23 @@ class Page:
 
     if "/QuadPoints" in obj:
       obj["<text>"] = _text_replace(_get_quad_points_txt())
-    obj["<text-ctx>"] = _text_replace(_get_rect_text_ctx(ctx_w=60))
+    default_ctx_w = 60
+    obj["<text-ctx>"] = _text_replace(_get_rect_text_ctx(ctx_w=default_ctx_w))
+
+    if obj.get("<text>"):
+      c = self._page_txt.count(obj["<text>"])
+      assert c >= 1  # if not, maybe newline or other whitespace thing?
+      if c == 1:
+        pos = self._page_txt.find(obj["<text>"])
+      else:
+        assert c > 1
+        c2 = self._page_txt.count(obj["<text-ctx>"])
+        assert c2 >= 1  # if not, maybe newline or other whitespace thing?
+        c3 = obj["<text-ctx>"].count(obj["<text>"])
+        assert c2 == c3 == 1, obj  # just not implemented otherwise TODO ...
+        # Now we can uniquely identify ...
+        pos = self._page_txt.find(obj["<text-ctx>"]) + obj["<text-ctx>"].find(obj["<text>"])
+      # TODO use pos ...
 
     if not _Debug:
       obj.pop("/QuadPoints", None)
