@@ -209,17 +209,36 @@ class Page:
     if obj.get("<text>"):
       c = self._page_txt.count(obj["<text>"])
       assert c >= 1  # if not, maybe newline or other whitespace thing?
-      if c == 1:
-        pos = self._page_txt.find(obj["<text>"])
-      else:
-        assert c > 1
-        c2 = self._page_txt.count(obj["<text-ctx>"])
-        assert c2 >= 1  # if not, maybe newline or other whitespace thing?
-        c3 = obj["<text-ctx>"].count(obj["<text>"])
-        assert c2 == c3 == 1, obj  # just not implemented otherwise TODO ...
-        # Now we can uniquely identify ...
-        pos = self._page_txt.find(obj["<text-ctx>"]) + obj["<text-ctx>"].find(obj["<text>"])
+      c2 = self._page_txt.count(obj["<text-ctx>"])
+      assert c2 >= 1  # if not, maybe newline or other whitespace thing?
+      assert c2 == 1  # just not implemented otherwise
+      txt_ctx = obj["<text-ctx>"]
+      ctx_w = default_ctx_w
+      while True:
+        c3 = obj["<text-ctx>"].count(txt_ctx)
+        assert c3 == 1  # not implemented otherwise
+        c4 = txt_ctx.count(obj["<text>"])
+        assert c4 >= 1  # sth wrong?
+        if c4 == 1:
+          pos_ = obj["<text-ctx>"].find(txt_ctx) + txt_ctx.find(obj["<text>"])
+          pos = self._page_txt.find(obj["<text-ctx>"]) + pos_
+          if obj.get("/Subj") in {"StrikeOut", "Replace Text"}:
+            # Just nicer visual representation of text-ctx with strikeout effect.
+            strike_out_txt = '\u0336'.join(obj["<text>"]) + '\u0336'
+            obj["<text-ctx>"] = (
+                obj["<text-ctx>"][:pos_] + strike_out_txt + obj["<text-ctx>"][pos_ + len(obj["<text>"]):])
+          break
+        ctx_w -= 5
+        assert ctx_w > 0
+        txt_ctx = _text_replace(_get_rect_text_ctx(ctx_w=ctx_w))
       # TODO use pos ...
+      #   find in latex code (straightforward)
+      #   suggest change:
+      #     delete
+      #     replace
+      #     insert
+      if obj.get("/Subj") == "Replace Text":
+        pass
 
     if not _Debug:
       obj.pop("/QuadPoints", None)
