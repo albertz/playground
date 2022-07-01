@@ -68,6 +68,8 @@ class Page:
     print(page_txt)
     self._page_txt = page_txt
 
+    self._edits_tex_line_start_end = None
+    self._edits_page_to_tex = None
     tex_file = None
     tex_center_line = None
     if env.args.synctex:
@@ -111,18 +113,18 @@ class Page:
       # Use simple generic rule: Skip if we have seen it via /IRT before.
       if annot.idnum in visited_irt:
         continue
-      self._cleanup_obj(fitz_page, obj)
       if obj.get('/IRT'):
         visited_irt.add(obj['/IRT'].idnum)
         irt_obj = dict(obj['/IRT'].get_object())
-        self._cleanup_obj(fitz_page, irt_obj)
+        self._cleanup_obj(fitz_page, irt_obj, is_irt=True)
         # Some further cleanup
         for name in ['/Subj', '/Subtype', '/T', '/IT']:
           irt_obj.pop(name, None)
         obj['/IRT'] = irt_obj
+      self._cleanup_obj(fitz_page, obj)
       print(annot, obj)
 
-  def _cleanup_obj(self, fitz_page, obj):
+  def _cleanup_obj(self, fitz_page, obj, *, is_irt: bool = False):
     # Drop some keys that are not useful for us.
     for name in [
       '/AP', "/F", "/N", "/NM", '/CreationDate', '/M', "/Open", '/BM',
@@ -206,22 +208,29 @@ class Page:
     default_ctx_w = 60
     obj["<text-ctx>"] = _text_replace(_get_rect_text_ctx(ctx_w=default_ctx_w))
 
-    if obj.get("<text>"):
-      c = self._page_txt.count(obj["<text>"])
-      assert c >= 1  # if not, maybe newline or other whitespace thing?
-      c2 = self._page_txt.count(obj["<text-ctx>"])
+    edit_pos_range = None
+    edit = None
+    if not is_irt and (obj.get("<text>") or CaretSym in obj["<text-ctx>"]):
+      if obj.get("<text>"):
+        txt = obj.get("<text>")
+        c = self._page_txt.count(txt)
+        assert c >= 1  # if not, maybe newline or other whitespace thing?
+      else:
+        txt = CaretSym
+      c2 = self._page_txt.count(obj["<text-ctx>"].replace(CaretSym, ""))
       assert c2 >= 1  # if not, maybe newline or other whitespace thing?
       assert c2 == 1  # just not implemented otherwise
+      page_ctx_pos = self._page_txt.find(obj["<text-ctx>"].replace(CaretSym, ""))
       txt_ctx = obj["<text-ctx>"]
       ctx_w = default_ctx_w
       while True:
         c3 = obj["<text-ctx>"].count(txt_ctx)
         assert c3 == 1  # not implemented otherwise
-        c4 = txt_ctx.count(obj["<text>"])
+        c4 = txt_ctx.count(txt)
         assert c4 >= 1  # sth wrong?
         if c4 == 1:
-          pos_ = obj["<text-ctx>"].find(txt_ctx) + txt_ctx.find(obj["<text>"])
-          pos = self._page_txt.find(obj["<text-ctx>"]) + pos_
+          pos_ = obj["<text-ctx>"].find(txt_ctx) + txt_ctx.find(txt)
+          pos = page_ctx_pos + pos_
           if obj.get("/Subj") in {"StrikeOut", "Replace Text"}:
             # Just nicer visual representation of text-ctx with strikeout effect.
             strike_out_txt = '\u0336'.join(obj["<text>"]) + '\u0336'
@@ -231,20 +240,31 @@ class Page:
         ctx_w -= 5
         assert ctx_w > 0
         txt_ctx = _text_replace(_get_rect_text_ctx(ctx_w=ctx_w))
+      if obj.get("/Subj") == "StrikeOut":  # just delete
+        edit_pos_range = (pos, pos + len(obj["<text>"]))
+        edit = Edit(delete=obj["<text>"])
+      elif obj.get("/Subj") == "Replace Text":  # replace
+        assert obj.get("/IRT")
+        assert CaretSym in obj["/IRT"]["<text-ctx>"]
+        edit_pos_range = (pos, pos + len(obj["<text>"]))
+        edit = Edit(delete=obj["<text>"], insert=obj["/IRT"]["/Contents"])
+      elif obj.get('/Subj') == 'Insert Text':  # insert (no delete/replace)
+        edit_pos_range = (pos, pos)
+        edit = Edit(insert=obj["/Contents"])
+    if edit:
+      obj["<edit>"] = edit_pos_range + (edit,)
       # TODO use pos ...
-      #   find in latex code (straightforward)
-      #   suggest change:
-      #     delete
-      #     replace
-      #     insert
-      if obj.get("/Subj") == "Replace Text":
-        pass
+      #   find pos in latex code (straightforward)
+      #   translate edit -> translate_page_edit_to_latex_edit
 
     if not _Debug:
       obj.pop("/QuadPoints", None)
       obj.pop("/Rect", None)
 
     return obj
+
+  def translate_page_edit_to_latex_edit(self):
+    pass
 
 
 def _text_replace(page_txt: str) -> str:
