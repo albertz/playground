@@ -1,5 +1,5 @@
 
-# http://stackoverflow.com/questions/38140630/protected-member-access-works-only-when-not-getting-its-address
+// http://stackoverflow.com/questions/38140630/protected-member-access-works-only-when-not-getting-its-address
 
 #include <iostream>
 using namespace std;
