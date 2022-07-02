@@ -9,6 +9,7 @@ https://stackoverflow.com/questions/68266356/extracting-comments-annotations-fro
 """
 
 from __future__ import annotations
+from typing import Tuple
 import argparse
 import PyPDF2  # pip install PyPDF2
 import fitz  # brew install mupdf; pip install pymupdf
@@ -123,6 +124,9 @@ class Page:
         obj['/IRT'] = irt_obj
       self._cleanup_obj(fitz_page, obj)
       print(annot, obj)
+
+      if obj.get("<edit>"):
+        self.handle_page_edit(*obj.get("<edit>"))
 
   def _cleanup_obj(self, fitz_page, obj, *, is_irt: bool = False):
     # Drop some keys that are not useful for us.
@@ -259,9 +263,6 @@ class Page:
       if not _Debug:
         for name in ["/Contents", "/Subj", "/Subtype", "<text>", '/IRT', '/IT', '/RT']:
           obj.pop(name, None)
-      # TODO use pos ...
-      #   find pos in latex code (straightforward)
-      #   translate edit -> translate_page_edit_to_latex_edit
 
     if not _Debug:
       obj.pop("/QuadPoints", None)
@@ -269,8 +270,53 @@ class Page:
 
     return obj
 
-  def translate_page_edit_to_latex_edit(self):
-    pass
+  def handle_page_edit(self, page_pos_start: int, page_pos_end: int, page_edit: Edit):
+    """
+    find pos in latex code (straightforward).
+    translate edit.
+    """
+    latex_start_line, latex_start_line_pos, latex_start_edit_idx, latex_start_exact = (
+      self.translate_page_pos_to_latex_line_pos(page_pos_start))
+    latex_end_line, latex_end_line_pos, latex_end_edit_idx, latex_end_exact = (
+      self.translate_page_pos_to_latex_line_pos(page_pos_end))
+    assert latex_start_exact and latex_end_exact, (
+      f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]}")
+    # TODO ...
+
+  def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
+    """
+    Translate page pos to latex line pos.
+
+    :return: latex line, pos in that line, edit index, exact position?
+    """
+    cur_page_pos = 0
+    cur_latex_line, _ = self._edits_tex_line_start_end
+    cur_latex_line_pos = 0
+    edit_index = 0
+    for edit in self._edits_page_to_tex.edits:
+      if cur_page_pos == page_pos:
+        break
+      break_now = False
+      if cur_page_pos + len(edit.delete) > page_pos:
+        if edit.insert == edit.delete:
+          edit = Edit(
+            delete=edit.delete[:page_pos - cur_page_pos],
+            insert=edit.insert[:page_pos - cur_page_pos])
+          assert cur_page_pos + len(edit.delete) == page_pos
+          break_now = True
+        else:
+          break
+      cur_page_pos += len(edit.delete)
+      cur_latex_line += edit.insert.count("\n")
+      last_newline = edit.insert.rfind("\n")
+      if last_newline >= 0:
+        cur_latex_line_pos = len(edit.insert) - last_newline - 1
+      else:
+        cur_latex_line_pos += len(edit.delete)
+      if break_now:
+        break
+      edit_index += 1
+    return cur_latex_line, cur_latex_line_pos, edit_index, cur_page_pos == page_pos
 
 
 def _text_replace(page_txt: str) -> str:
@@ -354,20 +400,20 @@ def levenshtein_alignment(source: str, target: str) -> EditList:
   # loop over target pos
   # Build matrix target * source.
   # Start with initial for each source pos
-  # list of list of tuple (num total edits, backref, add, del)
+  # list of list of tuple (num total edits, backref, del, add)
   # backref: 0: above, 1: left-above, 2: left
   m = [(0, -1, "", "")]  # initial
   for j in range(1, len(source) + 1):
-    m.append((m[-1][0] + 1, 0, source[j - 1], ""))  # add
+    m.append((m[-1][0] + 1, 0, source[j - 1], ""))  # del
   ms = [m]
   for i in range(1, len(target) + 1):
-    m = [(ms[-1][0][0] + 1, 2, "", target[i - 1])]  # j=0, del
+    m = [(ms[-1][0][0] + 1, 2, "", target[i - 1])]  # j=0, add
     for j in range(1, len(source) + 1):
       # 3 cases:
       opts = (
-        (m[-1][0] + 1, 0, source[j - 1], ""),  # add
+        (m[-1][0] + 1, 0, source[j - 1], ""),  # del
         (ms[-1][j - 1][0] + int(source[j - 1] != target[i - 1]), 1, source[j - 1], target[i - 1]),  # replace or keep
-        (ms[-1][j][0] + 1, 2, "", target[i - 1])  # del
+        (ms[-1][j][0] + 1, 2, "", target[i - 1])  # add
       )
       m.append(min(opts))
     ms.append(m)
@@ -376,7 +422,7 @@ def levenshtein_alignment(source: str, target: str) -> EditList:
   total_num_edits = ms[i][j][0]
   ls = EditList.make_empty()
   while i > 0 or j > 0:
-    _, backref, add, del_ = ms[i][j]
+    _, backref, del_, add = ms[i][j]
     ls.add_left(Edit(insert=add, delete=del_))
     if backref == 0:
       j -= 1
