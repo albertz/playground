@@ -82,8 +82,10 @@ class Page:
         elif line.startswith(b"Line:"):
           tex_center_line = int(line[len("Line:"):].decode("utf8"))
       print("Tex file:", tex_file, ", center line:", tex_center_line)
-
+      print(f"--- {tex_file}\tv1")
+      print(f"+++ {tex_file}.new\tv2")
       lines = open(tex_file, encoding="utf8").readlines()
+      self._tex_lines = lines
       w = page_txt_num_lines * 2
       line_start = max(tex_center_line - w, 0)
       line_end = min(tex_center_line + w + 1, len(lines))
@@ -91,16 +93,17 @@ class Page:
       edits = levenshtein_alignment(page_txt, tex_selected_txt)
       self._edits_tex_line_start_end = (line_start, line_end)
       self._edits_page_to_tex = edits
-      for edit in edits.edits:
-        if edit.insert == edit.delete:
-          print(f"={edit.insert!r}")
-        elif edit.insert and edit.delete:
-          print(f"-{edit.delete!r} +{edit.insert!r}")
-        else:
-          if edit.delete:
-            print(f"-{edit.delete!r}")
-          if edit.insert:
-            print(f"+{edit.insert!r}")
+      if _Debug:
+        for edit in edits.edits:
+          if edit.insert == edit.delete:
+            print(f"={edit.insert!r}")
+          elif edit.insert and edit.delete:
+            print(f"-{edit.delete!r} +{edit.insert!r}")
+          else:
+            if edit.delete:
+              print(f"-{edit.delete!r}")
+            if edit.insert:
+              print(f"+{edit.insert!r}")
     self._tex_file = tex_file
 
     visited_irt = set()
@@ -281,7 +284,32 @@ class Page:
       self.translate_page_pos_to_latex_line_pos(page_pos_end))
     assert latex_start_exact and latex_end_exact, (
       f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]}")
-    # TODO ...
+    # https://en.wikipedia.org/wiki/Diff#Unified_format
+    lines = []
+    proposed_num_ctx_lines = 3
+    num_lines_source = 0
+    num_lines_target = 0
+    for i in range(latex_start_line - proposed_num_ctx_lines, latex_start_line):
+      lines.append(" " + self._tex_lines[i])
+      num_lines_source += 1
+      num_lines_target += 1
+    for i in range(latex_start_line, latex_end_line + 1):
+      lines.append("-" + self._tex_lines[i])
+      num_lines_source += 1
+    line = self._tex_lines[latex_start_line][:latex_start_line_pos]
+    assert "\n" not in page_edit.insert  # not implemented
+    line += page_edit.insert
+    line += self._tex_lines[latex_end_line][latex_end_line_pos:]
+    lines.append("+" + line)
+    num_lines_target += 1
+    for i in range(latex_end_line + 1, latex_end_line + proposed_num_ctx_lines + 1):
+      lines.append(" " + self._tex_lines[i])
+      num_lines_source += 1
+      num_lines_target += 1
+    new_latex_start_line = latex_start_line  # TODO ... or maybe ignore
+    print(f"@@ -{latex_start_line},{num_lines_source} +{new_latex_start_line},{num_lines_target} @@")
+    for line in lines:
+      print(line, end="")
 
   def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
     """
