@@ -230,6 +230,7 @@ class Page:
       assert c2 >= 1  # if not, maybe newline or other whitespace thing?
       assert c2 == 1  # just not implemented otherwise
       page_ctx_pos = self._page_txt.find(obj["<text-ctx>"].replace(CaretSym, ""))
+      assert page_ctx_pos >= 0
       txt_ctx = obj["<text-ctx>"]
       ctx_w = default_ctx_w
       while True:
@@ -297,8 +298,15 @@ class Page:
       lines.append("-" + self._tex_lines[i])
       num_lines_source += 1
     line = self._tex_lines[latex_start_line][:latex_start_line_pos]
-    assert "\n" not in page_edit.insert  # not implemented
-    line += page_edit.insert
+    insert = page_edit.insert
+    if "[" in insert:
+      p1 = insert.find("[")
+      p2 = insert.rfind("]")
+      assert 0 <= p1 < p2
+      insert = insert[:p1] + insert[p2 + 1:]
+    insert = insert.replace("#", " ")
+    assert "\n" not in insert  # not implemented
+    line += insert
     line += self._tex_lines[latex_end_line][latex_end_line_pos:]
     lines.append("+" + line)
     num_lines_target += 1
@@ -342,6 +350,7 @@ class Page:
       else:
         cur_latex_line_pos += len(edit.delete)
       if break_now:
+        assert cur_page_pos == page_pos
         break
       edit_index += 1
     return cur_latex_line, cur_latex_line_pos, edit_index, cur_page_pos == page_pos
