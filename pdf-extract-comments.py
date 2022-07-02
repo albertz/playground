@@ -148,7 +148,7 @@ class Page:
     def _translate_quad_points(pts, o=0):
       # return fitz left,top,right,bottom
       pts = [float(v) for v in pts]
-      return pts[o + 0] - 1, fitz_page.rect[3] - pts[o + 1], pts[o + 2] + 1, fitz_page.rect[3] - pts[o + 5]
+      return pts[o + 0] - 1, fitz_page.rect[3] - pts[o + 1] - 1, pts[o + 2] + 1, fitz_page.rect[3] - pts[o + 5] + 1
 
     def _get_quad_points_txt():
       pts = obj["/QuadPoints"]
@@ -187,6 +187,8 @@ class Page:
         rect_ = _translate_extend_rect(rect, ctx_w=ctx_w)
       full_txt = fitz_page.get_text(clip=rect_)
       if not full_txt.strip():
+        # empty? unexpected...
+        assert "/QuadPoints" not in obj and obj.get("/Subj") not in {"StrikeOut", "Replace Text"}
         return ""
       full_txt = full_txt.replace("\n", " ").rstrip()
       if obj.get('/Subtype') == '/Caret':
@@ -253,6 +255,10 @@ class Page:
         edit = Edit(insert=obj["/Contents"])
     if edit:
       obj["<edit>"] = edit_pos_range + (edit,)
+      # Some further cleanup, as those info is in the edit.
+      if not _Debug:
+        for name in ["/Contents", "/Subj", "/Subtype", "<text>", '/IRT', '/IT', '/RT']:
+          obj.pop(name, None)
       # TODO use pos ...
       #   find pos in latex code (straightforward)
       #   translate edit -> translate_page_edit_to_latex_edit
