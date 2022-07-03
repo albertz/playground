@@ -23,11 +23,15 @@ _Debug = False
 
 
 def main():
+  global _Debug
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument("pdf_file", help="PDF file to extract comments from")
   arg_parser.add_argument("--synctex", help="(PDF) file for synctex")
   arg_parser.add_argument("--page", type=int)
+  arg_parser.add_argument("--debug", action="store_true")
   args = arg_parser.parse_args()
+  if args.debug:
+    _Debug = True
 
   env = Env(args)
 
@@ -365,6 +369,7 @@ def _text_replace(page_txt: str) -> str:
   page_txt = page_txt.replace("´a", "á")
   page_txt = page_txt.replace("´s", "ś")
   page_txt = page_txt.replace("ﬁ", "fi")
+  page_txt = page_txt.replace("ﬀ", "ff")
   return page_txt
 
 
