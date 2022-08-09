@@ -3,8 +3,12 @@
 # https://github.com/tensorflow/tensorflow/issues/22770
 
 import gc
-import tensorflow as tf
-from tensorflow.python import pywrap_tensorflow as c_api
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+try:
+    from tensorflow.python.client import pywrap_tf_session as c_api
+except ImportError:
+    from tensorflow.python import pywrap_tensorflow as c_api
 from tensorflow.python.framework import c_api_util
 
 print("TensorFlow:", tf.__version__, tf.__file__)
@@ -35,11 +39,17 @@ del x
 gc.collect()
 gc.collect()
 
-print(c_api.TF_OperationName(x_c_op))
-print(c_api.TF_OperationOpType(x_c_op))
-print(c_api.TF_OperationDevice(x_c_op))
-print(c_api.TF_OperationNumOutputs(x_c_op))
+def _x(f):
+    try:
+        f()
+    except Exception as e:
+        print("Exception:", e)
+
+_x(lambda: print(c_api.TF_OperationName(x_c_op)))
+_x(lambda: print(c_api.TF_OperationOpType(x_c_op)))
+_x(lambda: print(c_api.TF_OperationDevice(x_c_op)))
+_x(lambda: print(c_api.TF_OperationNumOutputs(x_c_op)))
 
 with c_api_util.tf_buffer() as buf:
-    c_api.TF_OperationToNodeDef(x_c_op, buf)
+    _x(lambda: c_api.TF_OperationToNodeDef(x_c_op, buf))
 
