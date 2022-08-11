@@ -15,6 +15,7 @@ import PyPDF2  # pip install PyPDF2
 import fitz  # brew install mupdf; pip install pymupdf
 import subprocess
 from dataclasses import dataclass, field
+import os
 import better_exchook
 
 
@@ -94,20 +95,18 @@ class Page:
       line_start = max(tex_center_line - w, 0)
       line_end = min(tex_center_line + w + 1, len(lines))
       tex_selected_txt = "".join(lines[line_start:line_end])
-      edits = levenshtein_alignment(page_txt, tex_selected_txt)
+      tex_selected_txt, tex_to_simplify_tex_edits = tex_simplify(tex_selected_txt)
+      page_to_simplify_tex_edits = levenshtein_alignment(page_txt, tex_selected_txt)
       self._edits_tex_line_start_end = (line_start, line_end)
+      simplify_to_tex_edits = tex_to_simplify_tex_edits.inverse()
+      if _Debug:
+        print("Simplified tex edits:")
+        simplify_to_tex_edits.dump()
+      edits = page_to_simplify_tex_edits.compose(simplify_to_tex_edits)
       self._edits_page_to_tex = edits
       if _Debug:
-        for edit in edits.edits:
-          if edit.insert == edit.delete:
-            print(f"={edit.insert!r}")
-          elif edit.insert and edit.delete:
-            print(f"-{edit.delete!r} +{edit.insert!r}")
-          else:
-            if edit.delete:
-              print(f"-{edit.delete!r}")
-            if edit.insert:
-              print(f"+{edit.insert!r}")
+        print("Page to tex edits:")
+        edits.dump()
     self._tex_file = tex_file
 
     visited_irt = set()
@@ -373,7 +372,7 @@ def _text_replace(page_txt: str) -> str:
   return page_txt
 
 
-@dataclass
+@dataclass(frozen=True)
 class Edit:
   """
   Edit.
@@ -402,6 +401,9 @@ class Edit:
     """
     return bool(self.insert), bool(self.delete), self.insert == self.delete
 
+  def __add__(self, other: Edit) -> Edit:
+    return Edit(insert=self.insert + other.insert, delete=self.delete + other.delete)
+
 
 @dataclass
 class EditList:
@@ -422,18 +424,97 @@ class EditList:
     """
     Modify inplace, edit + self.
     """
-    if not self.edits:
-      self.edits.append(edit)
-      self.char_len = edit.char_len()
-      return
-    edit0 = self.edits[0]
-    if edit0.merge_class() == edit.merge_class():
-      edit0.insert = edit.insert + edit0.insert
-      edit0.delete = edit.delete + edit0.delete
+    edit0 = self.edits[0] if self.edits else None
+    if edit0 and edit0.merge_class() == edit.merge_class():
+      edit0 = edit + edit0
+      self.edits[0] = edit0
     else:
       self.edits.insert(0, edit)
     if edit.insert != edit.delete:
       self.char_len += edit.char_len()
+
+  def add_right(self, edit: Edit):
+    """
+    Modify inplace, self + edit.
+    """
+    last_edit = self.edits[-1] if self.edits else None
+    if last_edit and last_edit.merge_class() == edit.merge_class():
+      last_edit = last_edit + edit
+      self.edits[-1] = last_edit
+    else:
+      self.edits.append(edit)
+    if edit.insert != edit.delete:
+      self.char_len += edit.char_len()
+
+  def inverse(self) -> EditList:
+    """
+    inserts become deletes, deletes become inserts.
+    """
+    out = EditList.make_empty()
+    for edit in self.edits:
+      out.add_right(Edit(insert=edit.delete, delete=edit.insert))
+    return out
+
+  def compose(self, other: EditList) -> EditList:
+    """
+    Composes self and other, like both edits are applied.
+    Note that this is not simply adding the list of edits.
+    """
+    out = EditList.make_empty()
+    self_edits = self.edits.copy()
+    other_edits = other.edits.copy()
+
+    def _next_longest_matching_other_edit(m: str) -> Edit:
+      if not other_edits:
+        return Edit.make_empty()
+      next_other_edit = other_edits.pop(0)
+      if m.startswith(next_other_edit.delete):
+        return next_other_edit
+      prefix = os.path.commonprefix([m, next_other_edit.delete])
+      assert prefix != next_other_edit.delete  # otherwise m.startswith(...)
+      assert prefix  # they should match
+      # need to split it
+      part1 = Edit(insert="", delete=prefix)
+      part2 = Edit(insert=next_other_edit.insert, delete=next_other_edit.delete[len(prefix):])
+      other_edits.insert(0, part2)
+      return part1
+
+    while self_edits:
+      self_edit = self_edits.pop(0)
+      if not self_edit.insert:
+        out.add_right(self_edit)
+        continue
+      other_edit = _next_longest_matching_other_edit(self_edit.insert)
+      if self_edit.insert == other_edit.delete:
+        out.add_right(Edit(insert=other_edit.insert, delete=self_edit.delete))
+      else:
+        # TODO sth is broken and/or suboptimal here... we should try to leave unchanged code as much as possible
+        assert self_edit.insert.startswith(other_edit.delete)
+        # Split it.
+        out.add_right(Edit(insert=other_edit.insert, delete=""))
+        part2_ = Edit(insert=self_edit.insert[len(other_edit.delete):], delete=self_edit.delete)
+        self_edits.insert(0, part2_)
+
+    # Any remaining? They should not delete anything anymore but only add something.
+    for other_edit in other_edits:
+      assert not other_edit.delete
+      out.add_right(other_edit)
+    return out
+
+  def dump(self):
+    """
+    To stdout
+    """
+    for edit in self.edits:
+      if edit.insert == edit.delete:
+        print(f"={edit.insert!r}")
+      elif edit.insert and edit.delete:
+        print(f"-{edit.delete!r} +{edit.insert!r}")
+      else:
+        if edit.delete:
+          print(f"-{edit.delete!r}")
+        if edit.insert:
+          print(f"+{edit.insert!r}")
 
 
 def levenshtein_alignment(source: str, target: str) -> EditList:
@@ -478,6 +559,64 @@ def levenshtein_alignment(source: str, target: str) -> EditList:
       assert backref in {0, 1, 2}, f"invalid backref {backref}"
   assert ls.char_len == total_num_edits
   return ls
+
+
+def tex_simplify(tex: str) -> (str, EditList):
+  """
+  :param tex: code
+  :return: (simplified tex, edit from input tex to simplified tex)
+  """
+  edits = EditList()
+  out = ""
+  pos = 0
+  tex_len = len(tex)
+  while pos < tex_len:
+    if tex[pos] == "%":  # comment
+      pos_ = pos + 1
+      while tex[pos_] != "\n":
+        pos_ += 1
+      # delete the command
+      edits.add_right(Edit(insert="", delete=tex[pos:pos_ + 1]))
+      pos = pos_ + 1
+    elif tex[pos] == "\\":
+      pos_ = pos + 1
+      while tex[pos_].isalpha():
+        pos_ += 1
+      cmd = tex[pos + 1:pos_]
+      if cmd in {"Gls", "gls", "Glspl", "glspl"}:
+        # Replace by abbreviation.
+        assert tex[pos_] == "{"
+        pos__ = pos_ + 1
+        while tex[pos__] != "}":
+          assert tex[pos__].isalpha() or tex[pos__] in "-", f"invalid cmd {tex[pos:pos__ + 1]!r}"
+          pos__ += 1
+        arg = tex[pos_ + 1:pos__]
+        replace = {
+          "hybrid-hmm": "hybrid NN-HMM"
+        }.get(arg, arg.upper())  # good fallback heuristic
+        if cmd.endswith("pl"):
+          replace += "s"
+        out += replace
+        edits.add_right(Edit(insert=replace, delete=tex[pos:pos__ + 1]))
+        pos = pos__ + 1
+      # any commands with a simple argument which we can completely remove
+      elif cmd in {"glsreset", "label"}:
+        assert tex[pos_] == "{"
+        pos__ = pos_ + 1
+        while tex[pos__] != "}":
+          assert tex[pos__] != "{"
+          pos__ += 1
+        edits.add_right(Edit(insert="", delete=tex[pos:pos__ + 1]))
+        pos = pos__ + 1
+      else:
+        # delete the command
+        edits.add_right(Edit(insert="", delete=tex[pos:pos_]))
+        pos = pos_
+    else:
+      out += tex[pos]
+      edits.add_right(Edit(insert=tex[pos], delete=tex[pos]))
+      pos += 1
+  return out, edits
 
 
 if __name__ == "__main__":
