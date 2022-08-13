@@ -358,7 +358,7 @@ class Page:
       if last_newline >= 0:
         cur_latex_line_pos = len(edit.insert) - last_newline - 1
       else:
-        cur_latex_line_pos += len(edit.delete)
+        cur_latex_line_pos += len(edit.insert)
       if break_now:
         assert cur_page_pos == page_pos
         break
