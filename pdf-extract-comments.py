@@ -290,10 +290,6 @@ class Page:
       self.translate_page_pos_to_latex_line_pos(page_pos_end))
     assert latex_start_exact and latex_end_exact, (
       f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]}")
-    if latex_start_line == latex_end_line:
-      assert self._tex_lines[latex_start_line][latex_start_line_pos:latex_end_line_pos] == page_edit.delete, (
-        self._tex_lines[latex_start_line], latex_start_line_pos, latex_end_line_pos,
-        self._page_txt[page_pos_start:page_pos_end], page_edit)
     # https://en.wikipedia.org/wiki/Diff#Unified_format
     lines = []
     proposed_num_ctx_lines = 3
@@ -306,6 +302,16 @@ class Page:
     for i in range(latex_start_line, latex_end_line + 1):
       lines.append("-" + self._tex_lines[i])
       num_lines_source += 1
+    assert latex_start_line == latex_end_line  # not implemented for the following but also unlikely
+    assert self._tex_lines[latex_start_line][latex_start_line_pos:latex_end_line_pos] == page_edit.delete, (
+      self._tex_lines[latex_start_line], latex_start_line_pos, latex_end_line_pos,
+      self._page_txt[page_pos_start:page_pos_end], page_edit)
+    if len(page_edit.delete) >= 2 and page_edit.delete[0] == page_edit.delete[-1] == " ":
+      latex_end_line_pos -= 1
+    src_start_space = latex_start_line_pos == 0 or self._tex_lines[latex_start_line][latex_start_line_pos - 1].isspace()
+    src_end_space = self._tex_lines[latex_end_line][latex_end_line_pos].isspace()
+    if src_start_space and src_end_space and not page_edit.insert:
+      latex_end_line_pos += 1
     line = self._tex_lines[latex_start_line][:latex_start_line_pos]
     insert = page_edit.insert
     if "[" in insert:
@@ -313,8 +319,12 @@ class Page:
       p2 = insert.rfind("]")
       assert 0 <= p1 < p2
       insert = insert[:p1] + insert[p2 + 1:]
+    insert = insert.replace("# ", " ")
+    insert = insert.replace(" #", " ")
     insert = insert.replace("#", " ")
     assert "\n" not in insert  # not implemented
+    if self._tex_lines[latex_end_line][latex_end_line_pos] == "." and insert.endswith(" "):
+      insert = insert[:-1]
     line += insert
     line += self._tex_lines[latex_end_line][latex_end_line_pos:]
     lines.append("+" + line)
