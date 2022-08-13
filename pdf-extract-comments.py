@@ -327,7 +327,6 @@ class Page:
     print(f"@@ -{latex_start_line},{num_lines_source} +{new_latex_start_line},{num_lines_target} @@")
     for line in lines:
       print(line, end="")
-    # TODO sth is wrong, but not always...
 
   def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
     """
