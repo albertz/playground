@@ -260,7 +260,7 @@ class Page:
         edit = Edit(delete=obj["<text>"])
       elif obj.get("/Subj") == "Replace Text":  # replace
         assert obj.get("/IRT")
-        assert CaretSym in obj["/IRT"]["<text-ctx>"]
+        assert CaretSym in obj["/IRT"]["<text-ctx>"]  # pos might not be reliable in IRT but not used anyway
         edit_pos_range = (pos, pos + len(obj["<text>"]))
         edit = Edit(delete=obj["<text>"], insert=obj["/IRT"]["/Contents"])
       elif obj.get('/Subj') == 'Insert Text':  # insert (no delete/replace)
@@ -290,6 +290,10 @@ class Page:
       self.translate_page_pos_to_latex_line_pos(page_pos_end))
     assert latex_start_exact and latex_end_exact, (
       f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]}")
+    if latex_start_line == latex_end_line:
+      assert self._tex_lines[latex_start_line][latex_start_line_pos:latex_end_line_pos] == page_edit.delete, (
+        self._tex_lines[latex_start_line], latex_start_line_pos, latex_end_line_pos,
+        self._page_txt[page_pos_start:page_pos_end], page_edit)
     # https://en.wikipedia.org/wiki/Diff#Unified_format
     lines = []
     proposed_num_ctx_lines = 3
