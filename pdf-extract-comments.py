@@ -100,12 +100,14 @@ class Page:
       self._edits_tex_line_start_end = (line_start, line_end)
       simplify_to_tex_edits = tex_to_simplify_tex_edits.inverse()
       if _Debug:
-        print("Simplified tex edits:")
+        print("*** Simplified tex edits:")
         simplify_to_tex_edits.dump()
+        print("*** Page to simplified tex edits:")
+        page_to_simplify_tex_edits.dump()
       edits = page_to_simplify_tex_edits.compose(simplify_to_tex_edits)
       self._edits_page_to_tex = edits
       if _Debug:
-        print("Page to tex edits:")
+        print("*** Page to tex edits:")
         edits.dump()
     self._tex_file = tex_file
 
@@ -369,6 +371,7 @@ def _text_replace(page_txt: str) -> str:
   page_txt = page_txt.replace("´s", "ś")
   page_txt = page_txt.replace("ﬁ", "fi")
   page_txt = page_txt.replace("ﬀ", "ff")
+  page_txt = page_txt.replace("ﬃ", "ffi")
   return page_txt
 
 
@@ -474,8 +477,13 @@ class EditList:
       assert prefix != next_other_edit.delete  # otherwise m.startswith(...)
       assert prefix  # they should match
       # need to split it
-      part1 = Edit(insert="", delete=prefix)
-      part2 = Edit(insert=next_other_edit.insert, delete=next_other_edit.delete[len(prefix):])
+      if next_other_edit.insert.startswith(prefix):
+        part1 = Edit(insert=prefix, delete=prefix)
+        part2 = Edit(insert=next_other_edit.insert[len(prefix):], delete=next_other_edit.delete[len(prefix):])
+      else:
+        assert next_other_edit.insert != next_other_edit.delete
+        part1 = Edit(insert="", delete=prefix)
+        part2 = Edit(insert=next_other_edit.insert, delete=next_other_edit.delete[len(prefix):])
       other_edits.insert(0, part2)
       return part1
 
@@ -488,11 +496,15 @@ class EditList:
       if self_edit.insert == other_edit.delete:
         out.add_right(Edit(insert=other_edit.insert, delete=self_edit.delete))
       else:
-        # TODO sth is broken and/or suboptimal here... we should try to leave unchanged code as much as possible
         assert self_edit.insert.startswith(other_edit.delete)
         # Split it.
-        out.add_right(Edit(insert=other_edit.insert, delete=""))
-        part2_ = Edit(insert=self_edit.insert[len(other_edit.delete):], delete=self_edit.delete)
+        if self_edit.delete.startswith(other_edit.delete):
+          part1_ = Edit(insert=other_edit.insert, delete=other_edit.delete)
+          part2_ = Edit(insert=self_edit.insert[len(other_edit.delete):], delete=self_edit.delete[len(other_edit.delete):])
+        else:
+          part1_ = Edit(insert=other_edit.insert, delete="")
+          part2_ = Edit(insert=self_edit.insert[len(other_edit.delete):], delete=self_edit.delete)
+        out.add_right(part1_)
         self_edits.insert(0, part2_)
 
     # Any remaining? They should not delete anything anymore but only add something.
