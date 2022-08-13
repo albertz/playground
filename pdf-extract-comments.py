@@ -97,6 +97,7 @@ class Page:
       tex_selected_txt = "".join(lines[line_start:line_end])
       tex_selected_txt, tex_to_simplify_tex_edits = tex_simplify(tex_selected_txt)
       page_to_simplify_tex_edits = levenshtein_alignment(page_txt, tex_selected_txt)
+      print("*** Page to simplify tex edits, num:", page_to_simplify_tex_edits.char_len)
       self._edits_tex_line_start_end = (line_start, line_end)
       simplify_to_tex_edits = tex_to_simplify_tex_edits.inverse()
       if _Debug:
@@ -295,7 +296,7 @@ class Page:
     proposed_num_ctx_lines = 3
     num_lines_source = 0
     num_lines_target = 0
-    for i in range(latex_start_line - proposed_num_ctx_lines, latex_start_line):
+    for i in range(max(latex_start_line - proposed_num_ctx_lines, 0), latex_start_line):
       lines.append(" " + self._tex_lines[i])
       num_lines_source += 1
       num_lines_target += 1
@@ -306,12 +307,6 @@ class Page:
     assert self._tex_lines[latex_start_line][latex_start_line_pos:latex_end_line_pos] == page_edit.delete, (
       self._tex_lines[latex_start_line], latex_start_line_pos, latex_end_line_pos,
       self._page_txt[page_pos_start:page_pos_end], page_edit)
-    if len(page_edit.delete) >= 2 and page_edit.delete[0] == page_edit.delete[-1] == " ":
-      latex_end_line_pos -= 1
-    src_start_space = latex_start_line_pos == 0 or self._tex_lines[latex_start_line][latex_start_line_pos - 1].isspace()
-    src_end_space = self._tex_lines[latex_end_line][latex_end_line_pos].isspace()
-    if src_start_space and src_end_space and not page_edit.insert:
-      latex_end_line_pos += 1
     line = self._tex_lines[latex_start_line][:latex_start_line_pos]
     insert = page_edit.insert
     if "[" in insert:
@@ -325,6 +320,16 @@ class Page:
     assert "\n" not in insert  # not implemented
     if self._tex_lines[latex_end_line][latex_end_line_pos] == "." and insert.endswith(" "):
       insert = insert[:-1]
+    src_start_space = latex_start_line_pos == 0 or self._tex_lines[latex_start_line][latex_start_line_pos - 1].isspace()
+    src_end_space = self._tex_lines[latex_end_line][latex_end_line_pos].isspace()
+    delete = page_edit.delete
+    if src_start_space and src_end_space and not insert:
+      delete += self._tex_lines[latex_end_line][latex_end_line_pos]
+      latex_end_line_pos += 1
+    if len(page_edit.delete) >= 2 and page_edit.delete[0] == page_edit.delete[-1] == " ":
+      latex_end_line_pos -= 1
+      delete = delete[:-1]
+    latex_edit = Edit(insert=insert, delete=delete)
     line += insert
     line += self._tex_lines[latex_end_line][latex_end_line_pos:]
     lines.append("+" + line)
@@ -337,6 +342,32 @@ class Page:
     print(f"@@ -{latex_start_line},{num_lines_source} +{new_latex_start_line},{num_lines_target} @@")
     for line in lines:
       print(line, end="")
+    self.apply_latex_edit(latex_start_line, latex_start_line_pos, latex_edit)
+
+  def apply_latex_edit(self, line: int, line_pos: int, edit: Edit):
+    """
+    applies the edit to the internal states
+    """
+    assert "\n" not in edit.delete  # unexpected
+    assert "\n" not in edit.insert  # unexpected
+    line_start, line_end = self._edits_tex_line_start_end
+    tex_edits = EditList()
+    if line > line_start:
+      txt = "".join(self._tex_lines[line_start:line])
+      tex_edits.add_right(Edit(insert=txt, delete=txt))
+    if line_pos > 0:
+      txt = self._tex_lines[line][:line_pos]
+      tex_edits.add_right(Edit(insert=txt, delete=txt))
+    tex_edits.add_right(edit)
+    line_pos_end = line_pos + len(edit.delete)
+    if line_pos_end < len(self._tex_lines[line]):
+      txt = self._tex_lines[line][line_pos_end:]
+      tex_edits.add_right(Edit(insert=txt, delete=txt))
+    if line + 1 < line_end:
+      txt = "".join(self._tex_lines[line + 1:line_end])
+      tex_edits.add_right(Edit(insert=txt, delete=txt))
+    self._edits_page_to_tex = self._edits_page_to_tex.compose(tex_edits)
+    self._tex_lines[line] = self._tex_lines[line][:line_pos] + edit.insert + self._tex_lines[line][line_pos_end:]
 
   def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
     """
