@@ -1,11 +1,34 @@
 #!/usr/bin/env python3
 
 """
-Extract comments from PDF files.
+Extract comments (list of edits) from PDF files.
 
+  https://stackoverflow.com/questions/68266356/extracting-comments-annotations-from-pdf-sequentially-python
 
-https://stackoverflow.com/questions/68266356/extracting-comments-annotations-from-pdf-sequentially-python
+Trace them back to the corresponding Latex code,
+and suggest the corresponding edit to the Latex code.
 
+The tracing is done via synctex for a rough position,
+and then taking the Levenshtein alignment of text to Latex
+to pinpoint it to the exact right position.
+
+Allow for interactive feedback on applying the edit,
+post-editing or discarding it.
+
+How to provide such interactive feedback?
+
+- VSCode Python control?
+  https://stackoverflow.com/a/72850026/133374
+  It looks a bit like too much work and might be confusing.
+
+- Python TUI?
+  https://docs.python.org/3/library/curses.html
+  https://github.com/bczsalba/pytermgui
+  http://urwid.org/examples/index.html
+  https://github.com/prompt-toolkit/python-prompt-toolkit
+  https://github.com/pfalcon/picotui
+  https://github.com/Textualize/textual
+  (Or coding some line edit by hand, should not be too difficult...?)
 """
 
 from __future__ import annotations
