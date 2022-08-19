@@ -42,6 +42,7 @@ import sys
 import tty
 import termios
 import os
+import signal
 import re
 
 KEY_UP = 1
@@ -151,6 +152,13 @@ class Editor:
     self.set_cursor()
     self.cursor(True)
 
+  def update_editor_row_offset(self, cur_row=None):
+    if cur_row is None:
+      cur_row = self.row
+    row, col = self.get_cursor_pos()
+    expected_row = self.screen_top + cur_row
+    self.screen_top += row - expected_row
+
   def update_line(self):
     self.cursor(False)
     self.wr(b"\r")
@@ -234,7 +242,6 @@ class Editor:
     return True
 
   def loop(self):
-    self.update_screen()
     while True:
       buf = os.read(0, 32)
       sz = len(buf)
@@ -302,10 +309,15 @@ def main():
 
   for i in range(e.height):
     print()
-  row, col = e.get_cursor_pos()
-  e.screen_top = row - e.height
+  e.update_editor_row_offset(cur_row=e.height)
+
+  def _on_resize(_signum, _frame):
+    e.update_editor_row_offset()
+
+  signal.signal(signal.SIGWINCH, _on_resize)
 
   e.set_lines(content)
+  e.update_screen()
   e.loop()
   e.deinit_tty()
 
