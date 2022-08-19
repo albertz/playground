@@ -145,12 +145,6 @@ class Editor:
   def total_lines(self):
     return len(self.content)
 
-  def update_status(self):
-    self.set_status_content([
-      "line: %d/%d" % (self.cur_line + 1, self.total_lines),
-      "col: %d" % self.col,
-    ])
-
   def set_status_content(self, lines: list[str]):
     assert self.status_content
     lines = lines or [""]
@@ -304,27 +298,31 @@ class Editor:
     return True
 
   def loop(self):
-    self.update_screen()
-    while True:
-      buf = os.read(0, 32)
-      sz = len(buf)
-      i = 0
-      while i < sz:
-        if buf[0] == 0x1b:
-          key = buf
-          i = len(buf)
-        else:
-          key = buf[i:i + 1]
-          i += 1
-        if key in KEYMAP:
-          key = KEYMAP[key]
-        if key == KEY_QUIT:
-          return key
-        if self.handle_cursor_keys(key):
-          self.update_status()
-          continue
-        self.handle_key(key)
-        self.update_status()
+    self.init_tty()
+    try:
+      self.update_screen()
+      while True:
+        buf = os.read(0, 32)
+        sz = len(buf)
+        i = 0
+        while i < sz:
+          if buf[0] == 0x1b:
+            key = buf
+            i = len(buf)
+          else:
+            key = buf[i:i + 1]
+            i += 1
+          if key in KEYMAP:
+            key = KEYMAP[key]
+          if key == KEY_QUIT:
+            return key
+          if self.handle_cursor_keys(key):
+            self.on_cursor_change()
+            continue
+          self.handle_key(key)
+          self.on_cursor_change()
+    finally:
+      self.deinit_tty()
 
   def handle_key(self, key):
     l = self.content[self.cur_line]
@@ -367,6 +365,7 @@ class Editor:
       self.content[self.cur_line] = l
       self.col += 1
       self.update_line()
+    self.on_edit()
 
   def init_tty(self):
     self.org_termios = termios.tcgetattr(0)
@@ -403,6 +402,17 @@ class Editor:
     termios.tcsetattr(0, termios.TCSANOW, self.org_termios)
     signal.signal(signal.SIGWINCH, self.org_sig_win_ch)
 
+  def on_cursor_change(self):
+    # Just an example. Overwrite this function if you want.
+    self.set_status_content([
+      "line: %d/%d" % (self.cur_line + 1, self.total_lines),
+      "col: %d" % self.col,
+    ])
+
+  def on_edit(self):
+    # Overwrite this function if you want.
+    pass
+
 
 def main():
   with open(sys.argv[1]) as f:
@@ -414,11 +424,7 @@ def main():
   e.set_lines(content)
   e.height = 20
 
-  e.init_tty()
-  try:
-    e.loop()
-  finally:
-    e.deinit_tty()
+  e.loop()
 
   print("Good bye!")
 
