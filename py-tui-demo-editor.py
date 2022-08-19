@@ -398,7 +398,6 @@ class Editor:
       # Don't leave cursor in the middle of screen
       self.goto(self.max_visible_height + len(self.status_content) - 1, 0)
       self.wr(b"\r\n")
-    import termios
     termios.tcsetattr(0, termios.TCSANOW, self.org_termios)
     signal.signal(signal.SIGWINCH, self.org_sig_win_ch)
 
