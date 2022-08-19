@@ -154,12 +154,12 @@ class Editor:
     lines = lines or [""]
     # assume we have already drawn the screen before
     if len(lines) < len(self.status_content):
-      self.goto(self.height, 0)
+      self.goto(self.max_visible_height, 0)
       self.wr(b"\x1b[%iM" % (len(self.status_content) - len(lines)))
     elif len(lines) > len(self.status_content):
-      self.goto(self.height, 0)
+      self.goto(self.max_visible_height, 0)
       self.wr(b"\n" * (len(lines) - 1))
-      self.update_editor_row_offset(self.height + len(lines) - 1)
+      self.update_editor_row_offset(self.max_visible_height + len(lines) - 1)
     self.status_content = lines
     self.update_screen_status()
 
@@ -182,10 +182,14 @@ class Editor:
     self.set_cursor()
     self.cursor(True)
 
+  @property
+  def max_visible_height(self):
+    return min(self.height, self.total_lines)
+
   def update_screen_status(self, *, goto=True):
     if goto:
       self.cursor(False)
-      self.goto(self.height, 0)
+      self.goto(self.max_visible_height, 0)
     self.wr(b"\x1b[30;102m")
     assert self.status_content
     for c, line in enumerate(self.status_content):
@@ -227,6 +231,16 @@ class Editor:
       self.row += 1
       return False
 
+  def prev_line(self):
+    if self.row == 0:
+      if self.top_line > 0:
+        self.top_line -= 1
+        return True
+      return False
+    else:
+      self.row -= 1
+      return False
+
   def handle_cursor_keys(self, key):
     if key == KEY_DOWN:
       if self.cur_line + 1 != self.total_lines:
@@ -240,12 +254,9 @@ class Editor:
       if self.cur_line > 0:
         self.cur_line -= 1
         self.adjust_cursor_eol()
-        if self.row == 0:
-          if self.top_line > 0:
-            self.top_line -= 1
-            self.update_screen()
+        if self.prev_line():
+          self.update_screen()
         else:
-          self.row -= 1
           self.set_cursor()
     elif key == KEY_LEFT:
       if self.col > 0:
@@ -316,9 +327,14 @@ class Editor:
   def handle_key(self, key):
     l = self.content[self.cur_line]
     if key == KEY_ENTER:
+      if len(self.content) < self.height:
+        self.cursor(False)
+        self.goto(self.max_visible_height + len(self.status_content) - 1, 0)
+        self.wr(b"\r\n")  # make space for new line at end
+        self.update_editor_row_offset(self.max_visible_height + len(self.status_content))
       self.content[self.cur_line] = l[:self.col]
       self.cur_line += 1
-      self.content[self.cur_line:self.cur_line] = [l[self.col:]]
+      self.content.insert(self.cur_line, l[self.col:])
       self.col = 0
       self.next_line()
       self.update_screen()
@@ -328,6 +344,18 @@ class Editor:
         l = l[:self.col] + l[self.col + 1:]
         self.content[self.cur_line] = l
         self.update_line()
+      elif self.cur_line:
+        self.cur_line -= 1
+        self.col = len(self.content[self.cur_line])
+        self.content[self.cur_line] += self.content[self.cur_line + 1]
+        self.content.pop(self.cur_line + 1)
+        if self.top_line > 0 and self.top_line + self.height > len(self.content):
+          self.top_line -= 1
+        elif self.row > 0:
+          self.row -= 1
+        if len(self.content) < self.height:
+          self.wr(b"\x1b[1M")  # delete one line
+        self.update_screen()
     elif key == KEY_DELETE:
       l = l[:self.col] + l[self.col + 1:]
       self.content[self.cur_line] = l
@@ -356,7 +384,7 @@ class Editor:
     signal.signal(signal.SIGWINCH, _on_resize)
 
   def _make_enough_space(self):
-    num_lines = self.height + len(self.status_content) - 1
+    num_lines = self.max_visible_height + len(self.status_content) - 1
     for i in range(num_lines):
       print()
     self.update_editor_row_offset(cur_row=num_lines)
@@ -365,10 +393,10 @@ class Editor:
     self.wr(b"\x1b[0m")
     if clear_editor:
       self.goto(0, 0)
-      self.wr(b"\x1b[%iM" % (self.height + len(self.status_content)))
+      self.wr(b"\x1b[%iM" % (self.max_visible_height + len(self.status_content)))
     else:
       # Don't leave cursor in the middle of screen
-      self.goto(self.height + len(self.status_content) - 1, 0)
+      self.goto(self.max_visible_height + len(self.status_content) - 1, 0)
       self.wr(b"\r\n")
     import termios
     termios.tcsetattr(0, termios.TCSANOW, self.org_termios)
@@ -383,6 +411,7 @@ def main():
 
   e = Editor()
   e.set_lines(content)
+  e.height = 20
 
   e.init_tty()
   try:
