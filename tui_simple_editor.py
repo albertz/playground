@@ -1,4 +1,8 @@
+#!/usr/bin/env python3
+
 """
+Simple TUI editor
+
 Python TUI?
 
 What I want:
@@ -26,15 +30,13 @@ https://github.com/Textualize/textual (13k stars)
 - async framework, I don't want that...
 
 (Or coding some line edit by hand, should not be too difficult...?)
-
 """
 
 # https://github.com/pfalcon/picotui/blob/master/seditor.py
 #
 # Very simple VT100 terminal text editor widget
-# Copyright (c) 2015 Paul Sokolovsky
+# Copyright (c) 2015 Paul Sokolovsky, (c) 2022 Albert Zeyer
 # Distributed under MIT License
-#
 
 # https://en.wikipedia.org/wiki/ANSI_escape_code#Terminal_input_sequences
 # https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-The-Alternate-Screen-Buffer
