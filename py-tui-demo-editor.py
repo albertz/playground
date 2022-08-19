@@ -35,9 +35,14 @@ https://github.com/Textualize/textual (13k stars)
 # Copyright (c) 2015 Paul Sokolovsky
 # Distributed under MIT License
 #
-import sys
-import os
 
+# https://en.wikipedia.org/wiki/ANSI_escape_code#Terminal_input_sequences
+
+import sys
+import tty
+import termios
+import os
+import re
 
 KEY_UP = 1
 KEY_DOWN = 2
@@ -73,11 +78,12 @@ KEYMAP = {
 class Editor:
 
   def __init__(self):
+    self.screen_top = 0
     self.top_line = 0
     self.cur_line = 0
     self.row = 0
     self.col = 0
-    self.height = 25
+    self.height = 10  # 25
     self.org_termios = None
 
   @staticmethod
@@ -89,9 +95,21 @@ class Editor:
   def cls():
     Editor.wr(b"\x1b[2J")
 
-  @staticmethod
-  def goto(row, col):
-    Editor.wr(b"\x1b[%d;%dH" % (row + 1, col + 1))
+  def goto(self, row, col):
+    Editor.wr(b"\x1b[%d;%dH" % (row + 1 + self.screen_top, col + 1))
+
+  def get_cursor_pos(self):
+    self.wr(b"\x1b[6n")
+    s = b""
+    while True:
+      s += os.read(0, 1)
+      if s[-1:] == b"R":
+        break
+      if s[-1:] == b"\x03":
+        raise KeyboardInterrupt
+    res = re.match(rb".*\[(?P<y>\d*);(?P<x>\d*)R", s)
+    row, col = res.groups()
+    return int(row) - 1, int(col) - 1
 
   @staticmethod
   def clear_to_eol():
@@ -119,10 +137,13 @@ class Editor:
   def update_screen(self):
     self.cursor(False)
     self.goto(0, 0)
-    self.cls()
+    if self.screen_top == 0:
+      self.cls()
     i = self.top_line
     for c in range(self.height):
       self.show_line(self.content[i])
+      if self.screen_top > 0:
+        self.clear_to_eol()
       self.wr(b"\r\n")
       i += 1
       if i == self.total_lines:
@@ -260,7 +281,6 @@ class Editor:
       self.update_line()
 
   def init_tty(self):
-    import tty, termios
     self.org_termios = termios.tcgetattr(0)
     tty.setraw(0)
 
@@ -271,13 +291,24 @@ class Editor:
     termios.tcsetattr(0, termios.TCSANOW, self.org_termios)
 
 
-if __name__ == "__main__":
+def main():
   with open(sys.argv[1]) as f:
     content = f.read().splitlines()
-    #content = f.readlines()
+
+  print("Hello editor!")
 
   e = Editor()
   e.init_tty()
+
+  for i in range(e.height):
+    print()
+  row, col = e.get_cursor_pos()
+  e.screen_top = row - e.height
+
   e.set_lines(content)
   e.loop()
   e.deinit_tty()
+
+
+if __name__ == "__main__":
+  main()
