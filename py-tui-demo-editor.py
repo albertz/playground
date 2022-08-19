@@ -314,6 +314,10 @@ def main():
 
   def _on_resize(_signum, _frame):
     e.update_editor_row_offset()
+    # If the colum size changed, and this wraps around existing text,
+    # this is not handled correctly yet...
+    # Updating the screen might be a good idea anyway.
+    e.update_screen()
 
   signal.signal(signal.SIGWINCH, _on_resize)
 
