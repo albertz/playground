@@ -385,6 +385,7 @@ class Editor:
     signal.signal(signal.SIGWINCH, _on_resize)
 
   def _make_enough_space(self):
+    # assuming nothing has been printed yet
     num_lines = self.max_visible_height + len(self.status_content) - 1
     for i in range(num_lines):
       print()
@@ -403,11 +404,8 @@ class Editor:
     signal.signal(signal.SIGWINCH, self.org_sig_win_ch)
 
   def on_cursor_change(self):
-    # Just an example. Overwrite this function if you want.
-    self.set_status_content([
-      "line: %d/%d" % (self.cur_line + 1, self.total_lines),
-      "col: %d" % self.col,
-    ])
+    # Overwrite this function if you want.
+    pass
 
   def on_edit(self):
     # Overwrite this function if you want.
@@ -423,6 +421,12 @@ def main():
   e = Editor()
   e.set_lines(content)
   e.height = 20
+
+  e.on_cursor_change = (
+    lambda: e.set_status_content([
+      "line: %d/%d" % (e.cur_line + 1, e.total_lines),
+      "col: %d" % e.col,
+    ]))
 
   e.loop()
 

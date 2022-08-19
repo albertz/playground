@@ -40,6 +40,7 @@ import subprocess
 from dataclasses import dataclass, field
 import os
 import better_exchook
+from tui_simple_editor import Editor
 
 
 CaretSym = "‸"
@@ -365,6 +366,27 @@ class Page:
     print(f"@@ -{latex_start_line},{num_lines_source} +{new_latex_start_line},{num_lines_target} @@")
     for line in lines:
       print(line, end="")
+
+    # TODO instead of applying the latex edit:
+    #  - apply it anyway?
+    #  - then show editor to post edit it, or edit it back?
+    #     - Ctrl+C to cancel edit (keep original), Ctrl+Enter to apply edit?
+    #     - show diff to original in status bar
+
+    editor = Editor()
+    editor.set_lines(
+      [line.rstrip() for line in self._tex_lines[
+        max(latex_start_line - proposed_num_ctx_lines, 0):
+        latex_end_line + proposed_num_ctx_lines + 1
+      ]])
+    editor.cur_line = editor.row = latex_start_line - max(latex_start_line - proposed_num_ctx_lines, 0)
+    editor.col = latex_start_line_pos
+    editor.height = 10
+    editor.loop()
+    # TODO set editor.on_edit ...
+    # TODO handle...
+    print("Editing done.")
+
     self.apply_latex_edit(latex_start_line, latex_start_line_pos, latex_edit)
 
   def apply_latex_edit(self, line: int, line_pos: int, edit: Edit):
