@@ -244,6 +244,7 @@ class Editor:
     return True
 
   def loop(self):
+    self.update_screen()
     while True:
       buf = os.read(0, 32)
       sz = len(buf)
@@ -325,7 +326,6 @@ def main():
   e = Editor()
   e.init_tty()
   e.set_lines(content)
-  e.update_screen()
   e.loop()
   e.deinit_tty()
 
