@@ -23,11 +23,11 @@ How to provide such interactive feedback?
 
 - Python TUI?
   https://docs.python.org/3/library/curses.html
-  https://github.com/bczsalba/pytermgui
-  http://urwid.org/examples/index.html
-  https://github.com/prompt-toolkit/python-prompt-toolkit
-  https://github.com/pfalcon/picotui
-  https://github.com/Textualize/textual
+  https://github.com/bczsalba/pytermgui (1.2k stars)
+  https://urwid.org/examples/index.html (2.5k stars)
+  https://github.com/prompt-toolkit/python-prompt-toolkit (7.9k stars)
+  https://github.com/pfalcon/picotui (0.7k stars)
+  https://github.com/Textualize/textual (13k stars; async framework)
   (Or coding some line edit by hand, should not be too difficult...?)
 """
 
