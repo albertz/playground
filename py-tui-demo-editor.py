@@ -78,12 +78,11 @@ class Editor:
     self.row = 0
     self.col = 0
     self.height = 25
+    self.org_termios = None
 
   @staticmethod
-  def wr(s):
-    # TODO: When Python is 3.5, update this to use only bytes
-    if isinstance(s, str):
-      s = bytes(s, "utf-8")
+  def wr(s: bytes):
+    assert isinstance(s, bytes)
     os.write(1, s)
 
   @staticmethod
@@ -92,8 +91,7 @@ class Editor:
 
   @staticmethod
   def goto(row, col):
-    # TODO: When Python is 3.5, update this to use bytes
-    Editor.wr("\x1b[%d;%dH" % (row + 1, col + 1))
+    Editor.wr(b"\x1b[%d;%dH" % (row + 1, col + 1))
 
   @staticmethod
   def clear_to_eol():
@@ -140,8 +138,8 @@ class Editor:
     self.set_cursor()
     self.cursor(True)
 
-  def show_line(self, l):
-    self.wr(l)
+  def show_line(self, line: str):
+    self.wr(line.encode("utf8"))
 
   def next_line(self):
     if self.row + 1 == self.height:
@@ -227,16 +225,13 @@ class Editor:
         else:
           key = buf[i:i + 1]
           i += 1
-        #self.show_status(repr(key))
         if key in KEYMAP:
           key = KEYMAP[key]
         if key == KEY_QUIT:
           return key
         if self.handle_cursor_keys(key):
           continue
-        res = self.handle_key(key)
-        if res is not None:
-          return res
+        self.handle_key(key)
 
   def handle_key(self, key):
     l = self.content[self.cur_line]
