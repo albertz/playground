@@ -88,6 +88,9 @@ class Editor:
     self.height = 10  # 25
     self.org_termios = None
     self.org_sig_win_ch = None
+    self.content_prefix_escape = b"\x1b[30;106m"
+    self.content = []
+    self.status_content = [""]
 
   @staticmethod
   def wr(s: bytes):
@@ -133,13 +136,37 @@ class Editor:
     if self.col > l:
       self.col = l
 
-  def set_lines(self, lines):
+  def set_lines(self, lines: list[str]):
     self.content = lines
-    self.total_lines = len(lines)
+
+  @property
+  def total_lines(self):
+    return len(self.content)
+
+  def update_status(self):
+    self.set_status_content([
+      "line: %d/%d" % (self.cur_line + 1, self.total_lines),
+      "col: %d" % self.col,
+    ])
+
+  def set_status_content(self, lines: list[str]):
+    assert self.status_content
+    lines = lines or [""]
+    # assume we have already drawn the screen before
+    if len(lines) < len(self.status_content):
+      self.goto(self.height, 0)
+      self.wr(b"\x1b[%iM" % (len(self.status_content) - len(lines)))
+    elif len(lines) > len(self.status_content):
+      self.goto(self.height, 0)
+      self.wr(b"\n" * (len(lines) - 1))
+      self.update_editor_row_offset(self.height + len(lines) - 1)
+    self.status_content = lines
+    self.update_screen_status()
 
   def update_screen(self):
     self.cursor(False)
     self.goto(0, 0)
+    self.wr(self.content_prefix_escape)
     if self.screen_top == 0:
       self.cls()
     i = self.top_line
@@ -151,8 +178,27 @@ class Editor:
       i += 1
       if i == self.total_lines:
         break
+    self.update_screen_status(goto=False)
     self.set_cursor()
     self.cursor(True)
+
+  def update_screen_status(self, *, goto=True):
+    if goto:
+      self.cursor(False)
+      self.goto(self.height, 0)
+    self.wr(b"\x1b[30;102m")
+    assert self.status_content
+    for c, line in enumerate(self.status_content):
+      if c > 0:
+        self.wr(b"\n")
+      self.show_line(line)
+      if self.screen_top > 0:
+        self.clear_to_eol()
+      self.wr(b"\r")
+    self.wr(b"\x1b[0m")
+    if goto:
+      self.set_cursor()
+      self.cursor(True)
 
   def update_editor_row_offset(self, cur_row=None):
     if cur_row is None:
@@ -164,6 +210,7 @@ class Editor:
   def update_line(self):
     self.cursor(False)
     self.wr(b"\r")
+    self.wr(self.content_prefix_escape)
     self.show_line(self.content[self.cur_line])
     self.clear_to_eol()
     self.set_cursor()
@@ -261,8 +308,10 @@ class Editor:
         if key == KEY_QUIT:
           return key
         if self.handle_cursor_keys(key):
+          self.update_status()
           continue
         self.handle_key(key)
+        self.update_status()
 
   def handle_key(self, key):
     l = self.content[self.cur_line]
@@ -270,7 +319,6 @@ class Editor:
       self.content[self.cur_line] = l[:self.col]
       self.cur_line += 1
       self.content[self.cur_line:self.cur_line] = [l[self.col:]]
-      self.total_lines += 1
       self.col = 0
       self.next_line()
       self.update_screen()
@@ -295,9 +343,7 @@ class Editor:
     tty.setraw(0)
     self.wr(b"\x1b[?7l")  # No Auto-Wrap Mode (DECAWM)
 
-    for i in range(self.height):
-      print()
-    self.update_editor_row_offset(cur_row=self.height)
+    self._make_enough_space()
 
     def _on_resize(_signum, _frame):
       self.update_editor_row_offset()
@@ -309,9 +355,21 @@ class Editor:
     self.org_sig_win_ch = signal.getsignal(signal.SIGWINCH)
     signal.signal(signal.SIGWINCH, _on_resize)
 
-  def deinit_tty(self):
-    # Don't leave cursor in the middle of screen
-    self.goto(self.height, 0)
+  def _make_enough_space(self):
+    num_lines = self.height + len(self.status_content) - 1
+    for i in range(num_lines):
+      print()
+    self.update_editor_row_offset(cur_row=num_lines)
+
+  def deinit_tty(self, clear_editor=True):
+    self.wr(b"\x1b[0m")
+    if clear_editor:
+      self.goto(0, 0)
+      self.wr(b"\x1b[%iM" % (self.height + len(self.status_content)))
+    else:
+      # Don't leave cursor in the middle of screen
+      self.goto(self.height + len(self.status_content) - 1, 0)
+      self.wr(b"\r\n")
     import termios
     termios.tcsetattr(0, termios.TCSANOW, self.org_termios)
     signal.signal(signal.SIGWINCH, self.org_sig_win_ch)
@@ -324,10 +382,13 @@ def main():
   print("Hello editor!")
 
   e = Editor()
-  e.init_tty()
   e.set_lines(content)
-  e.loop()
-  e.deinit_tty()
+
+  e.init_tty()
+  try:
+    e.loop()
+  finally:
+    e.deinit_tty()
 
   print("Good bye!")
 
