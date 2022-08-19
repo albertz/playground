@@ -37,6 +37,7 @@ https://github.com/Textualize/textual (13k stars)
 #
 
 # https://en.wikipedia.org/wiki/ANSI_escape_code#Terminal_input_sequences
+# https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-The-Alternate-Screen-Buffer
 
 import sys
 import tty
@@ -317,6 +318,7 @@ def main():
   signal.signal(signal.SIGWINCH, _on_resize)
 
   e.set_lines(content)
+  e.wr(b"\x1b[?7l")  # No Auto-Wrap Mode (DECAWM)
   e.update_screen()
   e.loop()
   e.deinit_tty()
