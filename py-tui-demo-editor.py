@@ -87,6 +87,7 @@ class Editor:
     self.col = 0
     self.height = 10  # 25
     self.org_termios = None
+    self.org_sig_win_ch = None
 
   @staticmethod
   def wr(s: bytes):
@@ -291,12 +292,28 @@ class Editor:
   def init_tty(self):
     self.org_termios = termios.tcgetattr(0)
     tty.setraw(0)
+    self.wr(b"\x1b[?7l")  # No Auto-Wrap Mode (DECAWM)
+
+    for i in range(self.height):
+      print()
+    self.update_editor_row_offset(cur_row=self.height)
+
+    def _on_resize(_signum, _frame):
+      self.update_editor_row_offset()
+      # If the colum size changed, and this wraps around existing text,
+      # this is not handled correctly yet...
+      # Updating the screen might be a good idea anyway.
+      self.update_screen()
+
+    self.org_sig_win_ch = signal.getsignal(signal.SIGWINCH)
+    signal.signal(signal.SIGWINCH, _on_resize)
 
   def deinit_tty(self):
     # Don't leave cursor in the middle of screen
     self.goto(self.height, 0)
     import termios
     termios.tcsetattr(0, termios.TCSANOW, self.org_termios)
+    signal.signal(signal.SIGWINCH, self.org_sig_win_ch)
 
 
 def main():
@@ -307,25 +324,12 @@ def main():
 
   e = Editor()
   e.init_tty()
-
-  for i in range(e.height):
-    print()
-  e.update_editor_row_offset(cur_row=e.height)
-
-  def _on_resize(_signum, _frame):
-    e.update_editor_row_offset()
-    # If the colum size changed, and this wraps around existing text,
-    # this is not handled correctly yet...
-    # Updating the screen might be a good idea anyway.
-    e.update_screen()
-
-  signal.signal(signal.SIGWINCH, _on_resize)
-
   e.set_lines(content)
-  e.wr(b"\x1b[?7l")  # No Auto-Wrap Mode (DECAWM)
   e.update_screen()
   e.loop()
   e.deinit_tty()
+
+  print("Good bye!")
 
 
 if __name__ == "__main__":
