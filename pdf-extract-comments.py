@@ -368,15 +368,12 @@ class Page:
     for line in lines:
       print(line, end="")
 
-    # TODO instead of applying the latex edit:
-    #  - apply it anyway?
-    #  - then show editor to post edit it, or edit it back?
-    #     - Ctrl+C to cancel edit (keep original), Ctrl+S to apply edit?
-    #     - show diff to original in status bar
-
     before_lines = [line.rstrip() for line in self._tex_lines]
-    self.apply_latex_edit(latex_start_line, latex_start_line_pos, latex_edit)
-    after_lines = [line.rstrip() for line in self._tex_lines]
+    after_lines = before_lines.copy()
+    after_lines[latex_start_line] = (
+      after_lines[latex_start_line][:latex_start_line_pos] +
+      latex_edit.insert +
+      after_lines[latex_start_line][latex_start_line_pos + len(latex_edit.delete):])
 
     editor = TuiEditor()
     editor.set_text_lines(after_lines)
@@ -388,60 +385,35 @@ class Page:
       diff = levenshtein_alignment(
         [line_ + "\n" for line_ in before_lines],
         [line_ + "\n" for line_ in editor.get_text_lines()])
-      status = []
-      i = 0
-      last_print_i = -100
-      ctx = 3
-      while i < len(diff.edits):
-        if diff.edits[i].is_change():
-          start = max(last_print_i + 1, i - ctx, 0)
-          if start > 0 and last_print_i < start - 1:
-            status.append("...")
-          for j in range(start, i):
-            assert not diff.edits[j].is_change()
-            status.append(f"={diff.edits[j].insert.rstrip()}")
-          status.append(f"-{diff.edits[i].delete.rstrip()}")
-          status.append(f"+{diff.edits[i].insert.rstrip()}")
-          last_print_i = i
-        elif i - last_print_i <= ctx:
-          status.append(f"={diff.edits[i].insert.rstrip()}")
-        elif i - last_print_i == ctx + 1:
-          status.append("...")
-        i += 1
+      status = ["Ctrl+C - exit; Ctrl+D - discard edit; Ctrl+S - apply edit"]
+      status += diff.summarize() or ["(No changes)"]
       editor.set_status_lines(status)
+
+    class _Discard(Exception):
+      pass
+
+    def _on_key(key):
+      if isinstance(key, bytes) and key == bytes([ord("D") - ord("A") + 1]):
+        raise _Discard
 
     _on_edit()
     editor.on_edit = _on_edit
-    # editor.on_edit = ...  TODO show diff before_lines/after_lines
-    editor.edit()
-    # TODO set editor.on_edit ...
-    # TODO handle...
-    print("Editing done.")
-
-  def apply_latex_edit(self, line: int, line_pos: int, edit: Edit):
-    """
-    applies the edit to the internal states
-    """
-    assert "\n" not in edit.delete  # unexpected
-    assert "\n" not in edit.insert  # unexpected
-    line_start, line_end = self._edits_tex_line_start_end
-    tex_edits = EditList()
-    if line > line_start:
-      txt = "".join(self._tex_lines[line_start:line])
-      tex_edits.add_right(Edit(insert=txt, delete=txt))
-    if line_pos > 0:
-      txt = self._tex_lines[line][:line_pos]
-      tex_edits.add_right(Edit(insert=txt, delete=txt))
-    tex_edits.add_right(edit)
-    line_pos_end = line_pos + len(edit.delete)
-    if line_pos_end < len(self._tex_lines[line]):
-      txt = self._tex_lines[line][line_pos_end:]
-      tex_edits.add_right(Edit(insert=txt, delete=txt))
-    if line + 1 < line_end:
-      txt = "".join(self._tex_lines[line + 1:line_end])
-      tex_edits.add_right(Edit(insert=txt, delete=txt))
-    self._edits_page_to_tex = self._edits_page_to_tex.compose(tex_edits)
-    self._tex_lines[line] = self._tex_lines[line][:line_pos] + edit.insert + self._tex_lines[line][line_pos_end:]
+    editor.on_key = _on_key
+    try:
+      editor.edit()
+    except _Discard:
+      print("Discard edit")
+    else:
+      new_lines = [line_ + "\n" for line_ in editor.get_text_lines()]
+      diff = levenshtein_alignment(self._tex_lines, new_lines)
+      changes_summary = diff.summarize()
+      if changes_summary:
+        print("Apply edits:")
+        print("\n".join(changes_summary))
+        self._tex_lines = new_lines
+        self._edits_page_to_tex = self._edits_page_to_tex.compose(diff)
+      else:
+        print("No edits")
 
   def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
     """
@@ -530,6 +502,12 @@ class Edit:
     :return: whether this edit causes any change
     """
     return self.insert != self.delete
+
+  def reverse(self) -> Edit:
+    """
+    :return: reverse of this edit
+    """
+    return Edit(insert=self.delete, delete=self.insert)
 
 
 @dataclass
@@ -653,6 +631,37 @@ class EditList:
           print(f"-{edit.delete!r}", file=file)
         if edit.insert:
           print(f"+{edit.insert!r}", file=file)
+
+  def summarize(self) -> list[str]:
+    """
+    :return: summarization
+    """
+    i = 0
+    last_print_i = -100
+    last_diff_i = -100
+    ctx = 3
+    diff = self
+    status = []
+    while i < len(diff.edits):
+      if diff.edits[i].is_change():
+        start = max(last_print_i + 1, i - ctx, 0)
+        if start > 0 and last_print_i < start - 1:
+          status.append("...")
+        for j in range(start, i):
+          assert not diff.edits[j].is_change()
+          status.append(f" {diff.edits[j].insert.rstrip()}")
+        status.append(f"-{diff.edits[i].delete.rstrip()}")
+        status.append(f"+{diff.edits[i].insert.rstrip()}")
+        last_print_i = i
+        last_diff_i = i
+      elif i - last_diff_i <= ctx:
+        status.append(f" {diff.edits[i].insert.rstrip()}")
+        last_print_i = i
+      elif i - last_diff_i == ctx + 1:
+        if all(not diff.edits[j].is_change() for j in range(i + 1, i + ctx + i) if j < len(diff.edits)):
+          status.append("...")
+      i += 1
+    return status
 
 
 def levenshtein_alignment(source: Union[str, list[str]], target: Union[str, list[str]]) -> EditList:
