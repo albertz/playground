@@ -650,8 +650,10 @@ class EditList:
         for j in range(start, i):
           assert not diff.edits[j].is_change()
           status.append(f" {diff.edits[j].insert.rstrip()}")
-        status.append(f"-{diff.edits[i].delete.rstrip()}")
-        status.append(f"+{diff.edits[i].insert.rstrip()}")
+        if diff.edits[i].delete:
+          status.append(f"-{diff.edits[i].delete.rstrip()}")
+        if diff.edits[i].insert:
+          status.append(f"+{diff.edits[i].insert.rstrip()}")
         last_print_i = i
         last_diff_i = i
       elif i - last_diff_i <= ctx:
