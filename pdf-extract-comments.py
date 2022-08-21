@@ -40,7 +40,7 @@ import subprocess
 from dataclasses import dataclass, field
 import os
 import better_exchook
-from tui_simple_editor import Editor
+from tui_editor import TuiEditor
 
 
 CaretSym = "‸"
@@ -370,19 +370,19 @@ class Page:
     # TODO instead of applying the latex edit:
     #  - apply it anyway?
     #  - then show editor to post edit it, or edit it back?
-    #     - Ctrl+C to cancel edit (keep original), Ctrl+Enter to apply edit?
+    #     - Ctrl+C to cancel edit (keep original), Ctrl+S to apply edit?
     #     - show diff to original in status bar
 
-    editor = Editor()
-    editor.set_lines(
+    editor = TuiEditor()
+    editor.set_text_lines(
       [line.rstrip() for line in self._tex_lines[
         max(latex_start_line - proposed_num_ctx_lines, 0):
         latex_end_line + proposed_num_ctx_lines + 1
       ]])
-    editor.cur_line = editor.row = latex_start_line - max(latex_start_line - proposed_num_ctx_lines, 0)
+    editor.row = latex_start_line - max(latex_start_line - proposed_num_ctx_lines, 0)
     editor.col = latex_start_line_pos
     editor.height = 10
-    editor.loop()
+    editor.edit()
     # TODO set editor.on_edit ...
     # TODO handle...
     print("Editing done.")
@@ -722,6 +722,7 @@ def tex_simplify(tex: str) -> (str, EditList):
 
 if __name__ == "__main__":
   better_exchook.install()
-  main()
-
-
+  try:
+    main()
+  except KeyboardInterrupt:
+    print("KeyboardInterrupt")
