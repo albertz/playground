@@ -405,15 +405,21 @@ class Page:
       print("Discard edit")
     else:
       new_lines = [line_ + "\n" for line_ in editor.get_text_lines()]
-      diff = levenshtein_alignment(self._tex_lines, new_lines)
-      changes_summary = diff.summarize()
-      if changes_summary:
+      if self._tex_lines == new_lines:
+        print("No edits")
+      else:
+        line_start, line_end = self._edits_tex_line_start_end
+        assert self._tex_lines[:line_start] == new_lines[:line_start]
+        line_end_ = line_end
+        if line_end < len(self._tex_lines) - 1:
+          line_end_ = len(new_lines) - len(self._tex_lines) + line_end
+        assert self._tex_lines[line_end:] == new_lines[line_end_:]
+        diff = levenshtein_alignment(self._tex_lines[line_start:line_end], new_lines[line_start:line_end_])
+        changes_summary = diff.summarize()
         print("Apply edits:")
         print("\n".join(changes_summary))
         self._tex_lines = new_lines
         self._edits_page_to_tex = self._edits_page_to_tex.compose(diff)
-      else:
-        print("No edits")
 
   def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
     """
@@ -611,7 +617,7 @@ class EditList:
 
     # Any remaining? They should not delete anything anymore but only add something.
     for other_edit in other_edits:
-      assert not other_edit.delete
+      assert not other_edit.delete, (self_edits, other_edits, out)
       out.add_right(other_edit)
     return out
 
