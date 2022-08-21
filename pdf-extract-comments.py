@@ -373,21 +373,20 @@ class Page:
     #     - Ctrl+C to cancel edit (keep original), Ctrl+S to apply edit?
     #     - show diff to original in status bar
 
+    before_lines = [line.rstrip() for line in self._tex_lines]
+    self.apply_latex_edit(latex_start_line, latex_start_line_pos, latex_edit)
+    after_lines = [line.rstrip() for line in self._tex_lines]
+
     editor = TuiEditor()
-    editor.set_text_lines(
-      [line.rstrip() for line in self._tex_lines[
-        max(latex_start_line - proposed_num_ctx_lines, 0):
-        latex_end_line + proposed_num_ctx_lines + 1
-      ]])
-    editor.row = latex_start_line - max(latex_start_line - proposed_num_ctx_lines, 0)
-    editor.col = latex_start_line_pos
+    editor.set_text_lines(after_lines)
+    editor.set_cursor_pos(line=latex_start_line, col=latex_start_line_pos)
     editor.height = 10
+    editor.show_line_numbers = True
+    # editor.on_edit = ...  TODO show diff before_lines/after_lines
     editor.edit()
     # TODO set editor.on_edit ...
     # TODO handle...
     print("Editing done.")
-
-    self.apply_latex_edit(latex_start_line, latex_start_line_pos, latex_edit)
 
   def apply_latex_edit(self, line: int, line_pos: int, edit: Edit):
     """
