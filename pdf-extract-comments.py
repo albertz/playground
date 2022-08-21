@@ -32,7 +32,8 @@ How to provide such interactive feedback?
 """
 
 from __future__ import annotations
-from typing import Tuple
+from typing import Tuple, Union
+import sys
 import argparse
 import PyPDF2  # pip install PyPDF2
 import fitz  # brew install mupdf; pip install pymupdf
@@ -382,6 +383,35 @@ class Page:
     editor.set_cursor_pos(line=latex_start_line, col=latex_start_line_pos)
     editor.height = 10
     editor.show_line_numbers = True
+
+    def _on_edit():
+      diff = levenshtein_alignment(
+        [line_ + "\n" for line_ in before_lines],
+        [line_ + "\n" for line_ in editor.get_text_lines()])
+      status = []
+      i = 0
+      last_print_i = -100
+      ctx = 3
+      while i < len(diff.edits):
+        if diff.edits[i].is_change():
+          start = max(last_print_i + 1, i - ctx, 0)
+          if start > 0 and last_print_i < start - 1:
+            status.append("...")
+          for j in range(start, i):
+            assert not diff.edits[j].is_change()
+            status.append(f"={diff.edits[j].insert.rstrip()}")
+          status.append(f"-{diff.edits[i].delete.rstrip()}")
+          status.append(f"+{diff.edits[i].insert.rstrip()}")
+          last_print_i = i
+        elif i - last_print_i <= ctx:
+          status.append(f"={diff.edits[i].insert.rstrip()}")
+        elif i - last_print_i == ctx + 1:
+          status.append("...")
+        i += 1
+      editor.set_status_lines(status)
+
+    _on_edit()
+    editor.on_edit = _on_edit
     # editor.on_edit = ...  TODO show diff before_lines/after_lines
     editor.edit()
     # TODO set editor.on_edit ...
@@ -495,6 +525,12 @@ class Edit:
   def __add__(self, other: Edit) -> Edit:
     return Edit(insert=self.insert + other.insert, delete=self.delete + other.delete)
 
+  def is_change(self) -> bool:
+    """
+    :return: whether this edit causes any change
+    """
+    return self.insert != self.delete
+
 
 @dataclass
 class EditList:
@@ -511,12 +547,12 @@ class EditList:
     """
     return EditList(edits=[], char_len=0)
 
-  def add_left(self, edit: Edit):
+  def add_left(self, edit: Edit, *, merge: bool = True):
     """
     Modify inplace, edit + self.
     """
     edit0 = self.edits[0] if self.edits else None
-    if edit0 and edit0.merge_class() == edit.merge_class():
+    if merge and edit0 and edit0.merge_class() == edit.merge_class():
       edit0 = edit + edit0
       self.edits[0] = edit0
     else:
@@ -524,12 +560,12 @@ class EditList:
     if edit.insert != edit.delete:
       self.char_len += edit.char_len()
 
-  def add_right(self, edit: Edit):
+  def add_right(self, edit: Edit, *, merge: bool = True):
     """
     Modify inplace, self + edit.
     """
     last_edit = self.edits[-1] if self.edits else None
-    if last_edit and last_edit.merge_class() == edit.merge_class():
+    if merge and last_edit and last_edit.merge_class() == edit.merge_class():
       last_edit = last_edit + edit
       self.edits[-1] = last_edit
     else:
@@ -601,23 +637,25 @@ class EditList:
       out.add_right(other_edit)
     return out
 
-  def dump(self):
+  def dump(self, *, file=None):
     """
-    To stdout
+    To file (stdout by default).
     """
+    if file is None:
+      file = sys.stdout
     for edit in self.edits:
       if edit.insert == edit.delete:
-        print(f"={edit.insert!r}")
+        print(f"={edit.insert!r}", file=file)
       elif edit.insert and edit.delete:
-        print(f"-{edit.delete!r} +{edit.insert!r}")
+        print(f"-{edit.delete!r} +{edit.insert!r}", file=file)
       else:
         if edit.delete:
-          print(f"-{edit.delete!r}")
+          print(f"-{edit.delete!r}", file=file)
         if edit.insert:
-          print(f"+{edit.insert!r}")
+          print(f"+{edit.insert!r}", file=file)
 
 
-def levenshtein_alignment(source: str, target: str) -> EditList:
+def levenshtein_alignment(source: Union[str, list[str]], target: Union[str, list[str]]) -> EditList:
   """
   get minimal list of edits to transform source to target
   """
@@ -626,6 +664,20 @@ def levenshtein_alignment(source: str, target: str) -> EditList:
   # Start with initial for each source pos
   # list of list of tuple (num total edits, backref, del, add)
   # backref: 0: above, 1: left-above, 2: left
+  if not source and not target:
+    return EditList.make_empty()
+  type_ = type(source)
+  # First optimization: search common prefix and suffix and cut that away.
+  prefix_edits = EditList.make_empty()
+  ls = EditList.make_empty()
+  while source and source[-1:] == target[-1:]:
+    ls.add_left(Edit(insert=source[-1], delete=target[-1]), merge=type_ == str)
+    source = source[:-1]
+    target = target[:-1]
+  while source and source[:1] == target[:1]:
+    prefix_edits.add_right(Edit(insert=source[0], delete=target[0]), merge=type_ == str)
+    source = source[1:]
+    target = target[1:]
   m = [(0, -1, "", "")]  # initial
   for j in range(1, len(source) + 1):
     m.append((m[-1][0] + 1, 0, source[j - 1], ""))  # del
@@ -644,10 +696,9 @@ def levenshtein_alignment(source: str, target: str) -> EditList:
   # build edit list, going through backrefs
   i, j = len(target), len(source)
   total_num_edits = ms[i][j][0]
-  ls = EditList.make_empty()
   while i > 0 or j > 0:
     _, backref, del_, add = ms[i][j]
-    ls.add_left(Edit(insert=add, delete=del_))
+    ls.add_left(Edit(insert=add, delete=del_), merge=type_ == str)
     if backref == 0:
       j -= 1
     elif backref == 1:
@@ -657,7 +708,10 @@ def levenshtein_alignment(source: str, target: str) -> EditList:
       i -= 1
     else:
       assert backref in {0, 1, 2}, f"invalid backref {backref}"
-  assert ls.char_len == total_num_edits
+  for edit in reversed(prefix_edits.edits):
+    ls.add_left(edit, merge=type_ == str)
+  if type_ == str:
+    assert ls.char_len == total_num_edits
   return ls
 
 
