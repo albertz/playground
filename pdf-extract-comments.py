@@ -315,7 +315,8 @@ class Page:
     latex_end_line, latex_end_line_pos, latex_end_edit_idx, latex_end_exact = (
       self.translate_page_pos_to_latex_line_pos(page_pos_end))
     assert latex_start_exact and latex_end_exact, (
-      f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]}")
+      f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]} "
+      f"{self._debug_highlight_lines({'start': latex_start_line, 'end': latex_end_line})}")
     # https://en.wikipedia.org/wiki/Diff#Unified_format
     lines = []
     proposed_num_ctx_lines = 3
@@ -456,6 +457,19 @@ class Page:
         break
       edit_index += 1
     return cur_latex_line, cur_latex_line_pos, edit_index, cur_page_pos == page_pos
+
+  def _debug_highlight_lines(self, lines: dict[str, int]) -> str:
+    lines = {i: [k for k, v in lines.items() if v == i] for i in set(lines.values())}
+    prefix_len = max(len(",".join(v)) for v in lines.values())
+    ctx_around = 3
+    ctx_start = max(min(lines.keys()) - ctx_around, 0)
+    ctx_end = min(max(lines.keys()) + ctx_around, len(self._tex_lines) - 1) + 1
+    res = ["\n"]
+    for i in range(ctx_start, ctx_end):
+      prefix = ",".join(lines.get(i, []))
+      prefix = prefix.ljust(prefix_len)
+      res.append(f"{prefix} {i:>3}: {self._tex_lines[i]}")
+    return "".join(res)
 
 
 def _text_replace(page_txt: str) -> str:
