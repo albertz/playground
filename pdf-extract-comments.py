@@ -55,6 +55,7 @@ def main():
   arg_parser.add_argument("--synctex", help="(PDF) file for synctex")
   arg_parser.add_argument("--page", type=int)
   arg_parser.add_argument("--debug", action="store_true")
+  arg_parser.add_argument("--apply-all", action="store_true")
   args = arg_parser.parse_args()
   if args.debug:
     _Debug = True
@@ -83,6 +84,8 @@ class Env:
 
 class Page:
   def __init__(self, *, env: Env, page_num: int):
+    self.env = env
+    self.page_num = page_num
     print("*** page:", page_num + 1)  # in code 0-indexed, while all apps (esp PDF viewers) use 1-index base
     pypdf2_page = env.pypdf2_doc.pages[page_num]
     assert isinstance(pypdf2_page, PyPDF2.PageObject)
@@ -401,7 +404,8 @@ class Page:
     editor.on_edit = _on_edit
     editor.on_key = _on_key
     try:
-      editor.edit()
+      if not self.env.args.apply_all:
+        editor.edit()
     except _Discard:
       print("Discard edit")
     else:
@@ -421,6 +425,9 @@ class Page:
         print("\n".join(changes_summary))
         self._tex_lines = new_lines
         self._edits_page_to_tex = self._edits_page_to_tex.compose(diff)
+        if _Debug:
+          print("Edits page to tex:")
+          self._edits_page_to_tex.dump()
 
   def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
     """
