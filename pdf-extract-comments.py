@@ -32,6 +32,7 @@ How to provide such interactive feedback?
 """
 
 from __future__ import annotations
+import textwrap
 from typing import Tuple, Union
 import sys
 import argparse
@@ -51,14 +52,37 @@ _Debug = False
 def main():
   global _Debug
   arg_parser = argparse.ArgumentParser()
-  arg_parser.add_argument("pdf_file", help="PDF file to extract comments from")
+  arg_parser.add_argument("pdf_file", help="PDF file to extract comments from", nargs="?")
   arg_parser.add_argument("--synctex", help="(PDF) file for synctex")
   arg_parser.add_argument("--page", type=int)
   arg_parser.add_argument("--debug", action="store_true")
   arg_parser.add_argument("--apply-all", action="store_true")
+  arg_parser.add_argument("--tests", nargs="*", default=None)
   args = arg_parser.parse_args()
   if args.debug:
     _Debug = True
+
+  if args.tests is not None:
+    assert not args.pdf_file
+    if not args.tests:
+      for name, fn in globals().items():
+        if callable(fn) and name.startswith("test_"):
+          print(f"--- Test {name}:")
+          fn()
+    else:
+      for name in args.tests:
+        if "test_" + name in globals():
+          name = "test_" + name
+        fn = globals()[name]
+        assert callable(fn)
+        print(f"--- Test {name}:")
+        fn()
+    sys.exit()
+
+  if not args.pdf_file:
+    print("pdf_file required")
+    arg_parser.print_usage()
+    sys.exit(1)
 
   env = Env(args)
 
@@ -810,6 +834,31 @@ def tex_simplify(tex: str) -> (str, EditList):
       edits.add_right(Edit(insert=tex[pos], delete=tex[pos]))
       pos += 1
   return out, edits
+
+
+def test_edits_compose():
+  tex_s = textwrap.dedent("""\
+  The vanishing gradient problem \cite{hochreiter1991diplom,bengio1994longterm,hochreiter2001gradflow}
+  lead to the \gls{lstm} \cite{hochreiter1997lstm},
+  which is a variant of X.
+  """)
+  page_s = (
+    "The vanishing gradient problem [Hochreiter 91 , Bengio & Simard+ 94 , Hochreiter & Bengio+ 01] "
+    "lead to the long short-term memory (LSTM) [Hochreiter & Schmidhuber 97 ], which is a variant of X.")
+
+  tex_s, tex_to_simplify_tex_edits = tex_simplify(tex_s)
+  page_to_simplify_tex_edits = levenshtein_alignment(page_s, tex_s)
+  print("*** Page to simplify tex edits, num:", page_to_simplify_tex_edits.char_len)
+  simplify_to_tex_edits = tex_to_simplify_tex_edits.inverse()
+  if _Debug:
+    print("*** Simplified tex edits:")
+    simplify_to_tex_edits.dump()
+    print("*** Page to simplified tex edits:")
+    page_to_simplify_tex_edits.dump()
+  edits = page_to_simplify_tex_edits.compose(simplify_to_tex_edits)
+  if _Debug:
+    print("*** Page to tex edits:")
+    edits.dump()
 
 
 if __name__ == "__main__":
