@@ -448,6 +448,7 @@ class Page:
         print("Apply edits:")
         print("\n".join(changes_summary))
         self._tex_lines = new_lines
+        diff.reduce_line_based_to_char_based_inplace()
         self._edits_page_to_tex = self._edits_page_to_tex.compose(diff)
         if _Debug:
           print("Edits page to tex:")
@@ -679,6 +680,22 @@ class EditList:
       out.add_right(other_edit)
     return out
 
+  def reduce_line_based_to_char_based_inplace(self):
+    """
+    If this edit was a result from edit distance on line level,
+    this will go through the diffing lines and apply further an edit on char level.
+    """
+    i = 0
+    while i < len(self.edits):
+      edit = self.edits[i]
+      if edit.insert == edit.delete:
+        i += 1
+        continue
+      diff = levenshtein_alignment(edit.delete, edit.insert)
+      self.char_len += diff.char_len - edit.char_len()
+      self.edits[i:i+1] = diff.edits
+      i += len(diff.edits)
+
   def dump(self, *, file=None):
     """
     To file (stdout by default).
@@ -897,6 +914,9 @@ def test_edits_compose():
   changes_summary = diff.summarize()
   print("Apply edits:")
   print("\n".join(changes_summary))
+  diff.reduce_line_based_to_char_based_inplace()
+  print("After reduce_line_based_to_char_based_inplace:")
+  diff.dump()
   tex_lines = after_lines
   edits_page_to_tex = edits_page_to_tex.compose(diff)
   if _Debug:
