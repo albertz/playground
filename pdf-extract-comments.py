@@ -459,11 +459,23 @@ class Page:
 
     :return: latex line, pos in that line, edit index, exact position?
     """
+    cur_latex_line, cur_latex_line_pos, edit_index, is_exact = (
+      self._static_translate_page_pos_to_latex_line_pos(
+        page_pos=page_pos, edits_page_to_tex=self._edits_page_to_tex))
+    start_latex_line, _ = self._edits_tex_line_start_end
+    cur_latex_line += start_latex_line
+    return cur_latex_line, cur_latex_line_pos, edit_index, is_exact
+
+  @classmethod
+  def _static_translate_page_pos_to_latex_line_pos(cls, *,
+                                                   page_pos: int,
+                                                   edits_page_to_tex: EditList
+                                                   ) -> Tuple[int, int, int, bool]:
     cur_page_pos = 0
-    cur_latex_line, _ = self._edits_tex_line_start_end
+    cur_latex_line = 0
     cur_latex_line_pos = 0
     edit_index = 0
-    for edit in self._edits_page_to_tex.edits:
+    for edit in edits_page_to_tex.edits:
       if cur_page_pos == page_pos:
         break
       break_now = False
@@ -717,6 +729,11 @@ class EditList:
       i += 1
     return status
 
+  def sanity_check(self):
+    """sanity check"""
+    for edit in self.edits:
+      assert edit.insert != "" or edit.delete != ""
+
 
 def levenshtein_alignment(source: Union[str, list[str]], target: Union[str, list[str]]) -> EditList:
   """
@@ -842,6 +859,7 @@ def test_edits_compose():
   lead to the \gls{lstm} \cite{hochreiter1997lstm},
   which is a variant of X.
   """)
+  tex_lines = tex_s.splitlines(keepends=True)
   page_s = (
     "The vanishing gradient problem [Hochreiter 91 , Bengio & Simard+ 94 , Hochreiter & Bengio+ 01] "
     "lead to the long short-term memory (LSTM) [Hochreiter & Schmidhuber 97 ], which is a variant of X.")
@@ -855,10 +873,36 @@ def test_edits_compose():
     simplify_to_tex_edits.dump()
     print("*** Page to simplified tex edits:")
     page_to_simplify_tex_edits.dump()
-  edits = page_to_simplify_tex_edits.compose(simplify_to_tex_edits)
+  edits_page_to_tex = page_to_simplify_tex_edits.compose(simplify_to_tex_edits)
   if _Debug:
     print("*** Page to tex edits:")
-    edits.dump()
+    edits_page_to_tex.dump()
+  edits_page_to_tex.sanity_check()
+
+  latex_start_line, latex_start_line_pos, edit_index, is_exact = Page._static_translate_page_pos_to_latex_line_pos(
+    page_pos=len("The vanishing gradient problem [Hochreiter 91 , Bengio & Simard+ 94 , Hochreiter & Bengio+ 01] "),
+    edits_page_to_tex=edits_page_to_tex)
+  latex_end_line = latex_start_line
+  latex_end_line_pos = latex_start_line_pos + len("lead")
+  latex_edit = Edit(delete="lead", insert="led")
+
+  before_lines = tex_lines
+  after_lines = before_lines.copy()
+  after_lines[latex_start_line] = (
+    after_lines[latex_start_line][:latex_start_line_pos] +
+    latex_edit.insert +
+    after_lines[latex_start_line][latex_start_line_pos + len(latex_edit.delete):])
+
+  diff = levenshtein_alignment(tex_lines, after_lines)
+  changes_summary = diff.summarize()
+  print("Apply edits:")
+  print("\n".join(changes_summary))
+  tex_lines = after_lines
+  edits_page_to_tex = edits_page_to_tex.compose(diff)
+  if _Debug:
+    print("Edits page to tex:")
+    edits_page_to_tex.dump()
+  edits_page_to_tex.sanity_check()
 
 
 if __name__ == "__main__":
