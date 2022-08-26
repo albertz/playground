@@ -487,6 +487,7 @@ def _text_replace(page_txt: str) -> str:
   page_txt = page_txt.replace("´a", "á")
   page_txt = page_txt.replace("´s", "ś")
   page_txt = page_txt.replace("ﬁ", "fi")
+  page_txt = page_txt.replace("ﬂ", "fl")
   page_txt = page_txt.replace("ﬀ", "ff")
   page_txt = page_txt.replace("ﬃ", "ffi")
   return page_txt
