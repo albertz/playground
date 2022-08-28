@@ -893,16 +893,22 @@ def tex_simplify(tex: str) -> (str, EditList):
         edits.add_right(Edit(insert="", delete=tex[pos:pos__ + 1]))
         pos = pos__ + 1
       elif cmd in {"cite"}:
+        # delete the command
+        edits.add_right(Edit(insert="", delete=tex[pos:pos_]))
         assert tex[pos_] == "{"
+        out += "["
+        edits.add_right(Edit(insert="[", delete="{"))
         pos__ = pos_ + 1
-        replace = "["
         while pos__ < len(tex) and tex[pos__] != "}":
           assert tex[pos__] != "{"
-          replace += tex[pos__]
+          out += tex[pos__]
+          edits.add_right(Edit(insert=tex[pos__], delete=tex[pos__]))
           pos__ += 1
-        replace += "]"
-        out += replace
-        edits.add_right(Edit(insert=replace, delete=tex[pos:pos__ + 1]))
+        out += "]"
+        if pos__ < len(tex) and tex[pos__] == "}":
+          edits.add_right(Edit(insert="]", delete="}"))
+        else:
+          edits.add_right(Edit(insert="]", delete=""))
         pos = pos__ + 1
       else:
         # delete the command
