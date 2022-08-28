@@ -361,6 +361,7 @@ class Page:
       p2 = insert.rfind("]")
       assert 0 <= p1 < p2
       insert = insert[:p1] + insert[p2 + 1:]
+    insert = insert.replace("\r", " ")
     insert = insert.replace("# ", " ")
     insert = insert.replace(" #", " ")
     insert = insert.replace("#", " ")
@@ -382,9 +383,11 @@ class Page:
           [latex_start_line_pos:latex_start_line_pos + len(insert)] == insert):
       print("(Edit already applied (heuristic 1) - skipping.)")
       return
-    assert latex_start_exact and latex_end_exact, (
-      f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]} "
-      f"{self._debug_highlight_lines({'start': latex_start_line, 'end': latex_end_line})}")
+    if not latex_start_exact or not latex_end_exact:
+      print(f"!!! ERROR, no exact match {latex_start_exact=}, {latex_end_exact=}")
+      print(f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]}")
+      print(self._debug_highlight_lines({'start': latex_start_line, 'end': latex_end_line}))
+      return
     # https://en.wikipedia.org/wiki/Diff#Unified_format
     lines = []
     proposed_num_ctx_lines = 3
