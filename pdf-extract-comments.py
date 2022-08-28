@@ -55,6 +55,7 @@ def main():
   arg_parser.add_argument("pdf_file", help="PDF file to extract comments from", nargs="?")
   arg_parser.add_argument("--synctex", help="(PDF) file for synctex")
   arg_parser.add_argument("--page", type=int)
+  arg_parser.add_argument("--start-page", type=int, default=1)
   arg_parser.add_argument("--debug", action="store_true")
   arg_parser.add_argument("--apply-all", action="store_true")
   arg_parser.add_argument("--tests", nargs="*", default=None)
@@ -90,7 +91,7 @@ def main():
     Page(env=env, page_num=page_num)
 
   def _handle_all_pages():
-    for i in range(env.pypdf2_doc.numPages):
+    for i in range(args.start_page - 1, env.pypdf2_doc.numPages):
       _handle_page(i)
 
   if args.page is not None:
@@ -114,6 +115,7 @@ class Page:
     pypdf2_page = env.pypdf2_doc.pages[page_num]
     assert isinstance(pypdf2_page, PyPDF2.PageObject)
     if "/Annots" not in pypdf2_page:
+      print("(No annotations - stop.)")
       return
     fitz_page = env.fitz_doc[page_num]
     assert isinstance(fitz_page, fitz.Page)
@@ -139,6 +141,9 @@ class Page:
         elif line.startswith(b"Line:"):
           tex_center_line = int(line[len("Line:"):].decode("utf8"))
       print("Tex file:", tex_file, ", center line:", tex_center_line)
+      if tex_file.endswith(".toc"):
+        print("(Ignoring auto-generated .toc file.)")
+        return
       print(f"--- {tex_file}\tv1")
       print(f"+++ {tex_file}.new\tv2")
       lines = open(tex_file, encoding="utf8").readlines()
@@ -261,7 +266,7 @@ class Page:
       full_txt = fitz_page.get_text(clip=rect_)
       if not full_txt.strip():
         # empty? unexpected...
-        assert "/QuadPoints" not in obj and obj.get("/Subj") not in {"StrikeOut", "Replace Text"}
+        # assert "/QuadPoints" not in obj and obj.get("/Subj") not in {"StrikeOut", "Replace Text"}, full_txt
         return ""
       full_txt = full_txt.replace("\n", " ").rstrip()
       if obj.get('/Subtype') == '/Caret':
@@ -349,6 +354,33 @@ class Page:
       self.translate_page_pos_to_latex_line_pos(page_pos_start))
     latex_end_line, latex_end_line_pos, latex_end_edit_idx, latex_end_exact = (
       self.translate_page_pos_to_latex_line_pos(page_pos_end))
+    insert = page_edit.insert
+    if "[" in insert:
+      p1 = insert.find("[")
+      p2 = insert.rfind("]")
+      assert 0 <= p1 < p2
+      insert = insert[:p1] + insert[p2 + 1:]
+    insert = insert.replace("# ", " ")
+    insert = insert.replace(" #", " ")
+    insert = insert.replace("#", " ")
+    assert "\n" not in insert  # not implemented
+    if self._tex_lines[latex_end_line][latex_end_line_pos] == "." and insert.endswith(" "):
+      insert = insert[:-1]
+    delete = page_edit.delete
+    src_start_space = latex_start_line_pos == 0 or self._tex_lines[latex_start_line][latex_start_line_pos - 1].isspace()
+    src_end_space = self._tex_lines[latex_end_line][latex_end_line_pos].isspace()
+    if src_start_space and src_end_space and not insert:
+      delete += self._tex_lines[latex_end_line][latex_end_line_pos]
+      latex_end_line_pos += 1
+    if len(page_edit.delete) >= 2 and page_edit.delete[0] == page_edit.delete[-1] == " ":
+      latex_end_line_pos -= 1
+      delete = delete[:-1]
+    latex_edit = Edit(insert=insert, delete=delete)
+    if (
+          self._tex_lines[latex_start_line]
+          [latex_start_line_pos:latex_start_line_pos + len(insert)] == insert):
+      print("(Edit already applied (heuristic 1) - skipping.)")
+      return
     assert latex_start_exact and latex_end_exact, (
       f"{latex_start_line} {page_edit} {self._edits_page_to_tex.edits[latex_start_edit_idx]} "
       f"{self._debug_highlight_lines({'start': latex_start_line, 'end': latex_end_line})}")
@@ -365,32 +397,17 @@ class Page:
       lines.append("-" + self._tex_lines[i])
       num_lines_source += 1
     assert latex_start_line == latex_end_line  # not implemented for the following but also unlikely
-    assert self._tex_lines[latex_start_line][latex_start_line_pos:latex_end_line_pos] == page_edit.delete, (
-      self._tex_lines[latex_start_line], latex_start_line_pos, latex_end_line_pos,
-      self._page_txt[page_pos_start:page_pos_end], page_edit)
-    line = self._tex_lines[latex_start_line][:latex_start_line_pos]
-    insert = page_edit.insert
-    if "[" in insert:
-      p1 = insert.find("[")
-      p2 = insert.rfind("]")
-      assert 0 <= p1 < p2
-      insert = insert[:p1] + insert[p2 + 1:]
-    insert = insert.replace("# ", " ")
-    insert = insert.replace(" #", " ")
-    insert = insert.replace("#", " ")
-    assert "\n" not in insert  # not implemented
-    if self._tex_lines[latex_end_line][latex_end_line_pos] == "." and insert.endswith(" "):
-      insert = insert[:-1]
-    src_start_space = latex_start_line_pos == 0 or self._tex_lines[latex_start_line][latex_start_line_pos - 1].isspace()
-    src_end_space = self._tex_lines[latex_end_line][latex_end_line_pos].isspace()
-    delete = page_edit.delete
-    if src_start_space and src_end_space and not insert:
-      delete += self._tex_lines[latex_end_line][latex_end_line_pos]
-      latex_end_line_pos += 1
-    if len(page_edit.delete) >= 2 and page_edit.delete[0] == page_edit.delete[-1] == " ":
-      latex_end_line_pos -= 1
-      delete = delete[:-1]
-    latex_edit = Edit(insert=insert, delete=delete)
+    line = self._tex_lines[latex_start_line]
+    latex_delete = line[latex_start_line_pos:latex_end_line_pos]
+    if latex_delete != delete and latex_delete and latex_delete in insert:
+      print("(Edit already applied (heuristic 2) - skipping.)")
+      return
+    assert latex_delete == delete, (
+      line,
+      line[latex_start_line_pos:latex_end_line_pos],
+      line[latex_start_line_pos:latex_start_line_pos + len(insert)],
+      self._page_txt[page_pos_start:page_pos_end], page_edit, latex_edit)
+    line = line[:latex_start_line_pos]
     line += insert
     line += self._tex_lines[latex_end_line][latex_end_line_pos:]
     lines.append("+" + line)
