@@ -675,7 +675,7 @@ class EditList:
         return next_other_edit
       prefix = os.path.commonprefix([m, next_other_edit.delete])
       assert prefix != next_other_edit.delete  # otherwise m.startswith(...)
-      assert prefix  # they should match
+      assert prefix, (m, next_other_edit)  # they should match
       # need to split it
       if next_other_edit.insert.startswith(prefix):
         part1 = Edit(insert=prefix, delete=prefix)
@@ -891,6 +891,18 @@ def tex_simplify(tex: str) -> (str, EditList):
           assert tex[pos__] != "{"
           pos__ += 1
         edits.add_right(Edit(insert="", delete=tex[pos:pos__ + 1]))
+        pos = pos__ + 1
+      elif cmd in {"cite"}:
+        assert tex[pos_] == "{"
+        pos__ = pos_ + 1
+        replace = "["
+        while pos__ < len(tex) and tex[pos__] != "}":
+          assert tex[pos__] != "{"
+          replace += tex[pos__]
+          pos__ += 1
+        replace += "]"
+        out += replace
+        edits.add_right(Edit(insert=replace, delete=tex[pos:pos__ + 1]))
         pos = pos__ + 1
       else:
         # delete the command
