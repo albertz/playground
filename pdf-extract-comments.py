@@ -35,12 +35,13 @@ from __future__ import annotations
 import textwrap
 from typing import Tuple, Union
 import sys
+import os
+import re
 import argparse
 import PyPDF2  # pip install PyPDF2
 import fitz  # brew install mupdf; pip install pymupdf
 import subprocess
 from dataclasses import dataclass, field
-import os
 import better_exchook
 from tui_editor import TuiEditor
 
@@ -285,7 +286,7 @@ class Page:
 
     if "/QuadPoints" in obj:
       obj["<text>"] = _text_replace(_get_quad_points_txt())
-    default_ctx_w = 60
+    default_ctx_w = 70
     obj["<text-ctx>"] = _text_replace(_get_rect_text_ctx(ctx_w=default_ctx_w))
 
     edit_pos_range = None
@@ -298,8 +299,8 @@ class Page:
       else:
         txt = CaretSym
       c2 = self._page_txt.count(obj["<text-ctx>"].replace(CaretSym, ""))
-      assert c2 >= 1  # if not, maybe newline or other whitespace thing?
-      assert c2 == 1  # just not implemented otherwise
+      assert c2 >= 1, obj  # if not, maybe newline or other whitespace thing?
+      assert c2 == 1, obj  # just not implemented otherwise
       page_ctx_pos = self._page_txt.find(obj["<text-ctx>"].replace(CaretSym, ""))
       assert page_ctx_pos >= 0
       txt_ctx = obj["<text-ctx>"]
@@ -555,6 +556,10 @@ def _text_replace(page_txt: str) -> str:
   page_txt = page_txt.replace("ﬂ", "fl")
   page_txt = page_txt.replace("ﬀ", "ff")
   page_txt = page_txt.replace("ﬃ", "ffi")
+  page_txt = re.sub(r"\s+", " ", page_txt)
+  # Somehow the citation parts ("[...]") are often inconsistent via page.get_text(rect),
+  # but they don't matter anyway (except maybe author is helpful for matching).
+  page_txt = re.sub(r"\+?\s*([0-9]+)\s*]", r"\1]", page_txt)
   return page_txt
 
 
