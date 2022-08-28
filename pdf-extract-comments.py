@@ -164,6 +164,7 @@ class Page:
         edits.dump()
     self._tex_file = tex_file
 
+    annots = []
     visited_irt = set()
     for annot in pypdf2_page["/Annots"]:
       obj = dict(annot.get_object())
@@ -187,7 +188,14 @@ class Page:
       print(annot, obj)
 
       if obj.get("<edit>"):
-        self.handle_page_edit(*obj.get("<edit>"))
+        annots.append(obj)
+
+    print(f"--- Now edit the tex file with the {len(annots)} annotations")
+    for i in range(len(annots)):
+      obj = annots[i]
+      print(f"-- Annot {i + 1}/{len(annots)}: {obj}")
+      print(f"  (Next: {annots[i + 1] if i + 1 < len(annots) else None})")
+      self.handle_page_edit(*obj.get("<edit>"))
 
   def _cleanup_obj(self, fitz_page, obj, *, is_irt: bool = False):
     # Drop some keys that are not useful for us.
