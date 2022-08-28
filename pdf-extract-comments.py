@@ -300,6 +300,11 @@ class Page:
         txt = CaretSym
       c2 = self._page_txt.count(obj["<text-ctx>"].replace(CaretSym, ""))
       assert c2 >= 1, obj  # if not, maybe newline or other whitespace thing?
+      ctx_w = default_ctx_w
+      while c2 > 1:
+        ctx_w += 5
+        obj["<text-ctx>"] = _text_replace(_get_rect_text_ctx(ctx_w=ctx_w))
+        c2 = self._page_txt.count(obj["<text-ctx>"].replace(CaretSym, ""))
       assert c2 == 1, obj  # just not implemented otherwise
       page_ctx_pos = self._page_txt.find(obj["<text-ctx>"].replace(CaretSym, ""))
       assert page_ctx_pos >= 0
