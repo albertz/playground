@@ -379,6 +379,7 @@ class Page:
       delete = delete[:-1]
     latex_edit = Edit(insert=insert, delete=delete)
     if (
+          insert and
           self._tex_lines[latex_start_line]
           [latex_start_line_pos:latex_start_line_pos + len(insert)] == insert):
       print("(Edit already applied (heuristic 1) - skipping.)")
@@ -406,11 +407,14 @@ class Page:
     if latex_delete != delete and latex_delete and latex_delete in insert:
       print("(Edit already applied (heuristic 2) - skipping.)")
       return
-    assert latex_delete == delete, (
-      line,
-      line[latex_start_line_pos:latex_end_line_pos],
-      line[latex_start_line_pos:latex_start_line_pos + len(insert)],
-      self._page_txt[page_pos_start:page_pos_end], page_edit, latex_edit)
+    if latex_delete != delete:
+      print(f"!!! ERROR, {latex_delete=!r} != {delete=!r}")
+      print(" ", repr((
+        line,
+        line[latex_start_line_pos:latex_end_line_pos],
+        line[latex_start_line_pos:latex_start_line_pos + len(insert)],
+        self._page_txt[page_pos_start:page_pos_end], page_edit, latex_edit)))
+      return
     line = line[:latex_start_line_pos]
     line += insert
     line += self._tex_lines[latex_end_line][latex_end_line_pos:]
