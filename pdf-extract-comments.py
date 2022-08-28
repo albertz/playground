@@ -401,6 +401,11 @@ class Page:
     for i in range(latex_start_line, latex_end_line + 1):
       lines.append("-" + self._tex_lines[i])
       num_lines_source += 1
+    assert latex_start_line <= latex_end_line
+    if latex_start_line != latex_end_line:
+      print("!!! ERROR, can't handle multiple lines yet")
+      print(self._debug_highlight_lines({'start': latex_start_line, 'end': latex_end_line}))
+      return
     assert latex_start_line == latex_end_line  # not implemented for the following but also unlikely
     line = self._tex_lines[latex_start_line]
     latex_delete = line[latex_start_line_pos:latex_end_line_pos]
