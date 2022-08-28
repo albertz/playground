@@ -461,6 +461,9 @@ class Page:
         if _Debug:
           print("Edits page to tex:")
           self._edits_page_to_tex.dump()
+        with open(self._tex_file, "w") as f:
+          for line in self._tex_lines:
+            print(line, file=f, end="")
 
   def translate_page_pos_to_latex_line_pos(self, page_pos: int) -> Tuple[int, int, int, bool]:
     """
