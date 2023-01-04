@@ -59,6 +59,7 @@ def main():
   arg_parser.add_argument("--start-page", type=int, default=1)
   arg_parser.add_argument("--debug", action="store_true")
   arg_parser.add_argument("--apply-all", action="store_true")
+  arg_parser.add_argument("--edit", action="store_true", help="inline editor")
   arg_parser.add_argument("--tests", nargs="*", default=None)
   args = arg_parser.parse_args()
   if args.debug:
@@ -133,7 +134,7 @@ class Page:
     self._edits_page_to_tex = None
     tex_file = None
     tex_center_line = None
-    if env.args.synctex:
+    if env.args.synctex and env.args.edit:
       page_synctex = f"{page_num + 1}:{fitz_page.rect[2] / 2:.2f}:{fitz_page.rect[3] / 2:.2f}"
       synctex_cmd = ["synctex", "edit", "-o", f"{page_synctex}:{env.args.synctex}"]
       for line in subprocess.check_output(synctex_cmd).splitlines():
@@ -196,12 +197,13 @@ class Page:
       if obj.get("<edit>"):
         annots.append(obj)
 
-    print(f"--- Now edit the tex file with the {len(annots)} annotations")
-    for i in range(len(annots)):
-      obj = annots[i]
-      print(f"-- Annot {i + 1}/{len(annots)}: {obj}")
-      print(f"  (Next: {annots[i + 1] if i + 1 < len(annots) else None})")
-      self.handle_page_edit(*obj.get("<edit>"))
+    if env.args.edit:
+      print(f"--- Now edit the tex file with the {len(annots)} annotations")
+      for i in range(len(annots)):
+        obj = annots[i]
+        print(f"-- Annot {i + 1}/{len(annots)}: {obj}")
+        print(f"  (Next: {annots[i + 1] if i + 1 < len(annots) else None})")
+        self.handle_page_edit(*obj.get("<edit>"))
 
   def _cleanup_obj(self, fitz_page, obj, *, is_irt: bool = False):
     # Drop some keys that are not useful for us.
