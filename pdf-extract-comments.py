@@ -297,6 +297,9 @@ class Page:
       if obj.get("<text>"):
         txt = obj.get("<text>")
         c = self._page_txt.count(txt)
+        if c == 0:
+          obj["ERROR"] = "text not found in page text"
+          return obj
         assert c >= 1  # if not, maybe newline or other whitespace thing?
       else:
         txt = CaretSym
