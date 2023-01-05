@@ -329,7 +329,9 @@ class Page:
                 obj["<text-ctx>"][:pos_] + strike_out_txt + obj["<text-ctx>"][pos_ + len(obj["<text>"]):])
           break
         ctx_w -= 5
-        assert ctx_w > 0
+        if ctx_w <= 0:
+          obj["ERROR"] = f"txt {txt!r} not unique in txt_ctx {txt_ctx!r}"
+          return obj
         txt_ctx = _text_replace(_get_rect_text_ctx(ctx_w=ctx_w))
       if obj.get("/Subj") == "StrikeOut":  # just delete
         edit_pos_range = (pos, pos + len(obj["<text>"]))
