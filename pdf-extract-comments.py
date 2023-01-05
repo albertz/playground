@@ -301,7 +301,9 @@ class Page:
       else:
         txt = CaretSym
       c2 = self._page_txt.count(obj["<text-ctx>"].replace(CaretSym, ""))
-      assert c2 >= 1, obj  # if not, maybe newline or other whitespace thing?
+      if c2 == 0:  # if not, maybe newline or other whitespace thing?
+        obj["ERROR"] = "text-ctx not found in page text"
+        return obj
       ctx_w = default_ctx_w
       while c2 > 1:
         ctx_w += 5
