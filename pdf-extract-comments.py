@@ -316,7 +316,10 @@ class Page:
       ctx_w = default_ctx_w
       while True:
         c3 = obj["<text-ctx>"].count(txt_ctx)
-        assert c3 == 1  # not implemented otherwise
+        assert c3 >= 1  # sth wrong?
+        if c3 != 1:
+          obj["ERROR"] = f"txt_ctx {txt_ctx!r} not unique in text-ctx"
+          return obj
         c4 = txt_ctx.count(txt)
         assert c4 >= 1  # sth wrong?
         if c4 == 1:
