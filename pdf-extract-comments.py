@@ -344,7 +344,8 @@ class Page:
         edit = Edit(delete=obj["<text>"])
       elif obj.get("/Subj") == "Replace Text":  # replace
         assert obj.get("/IRT")
-        assert CaretSym in obj["/IRT"]["<text-ctx>"]  # pos might not be reliable in IRT but not used anyway
+        if CaretSym not in obj["/IRT"]["<text-ctx>"]:  # pos might not be reliable in IRT but not used anyway
+          obj["WARNING"] = "IRT text-ctx does not contain CaretSym?"
         edit_pos_range = (pos, pos + len(obj["<text>"]))
         edit = Edit(delete=obj["<text>"], insert=obj["/IRT"]["/Contents"])
       elif obj.get('/Subj') == 'Insert Text':  # insert (no delete/replace)
