@@ -94,7 +94,11 @@ def main():
 
   def _handle_all_pages():
     for i in range(args.start_page - 1, env.pypdf2_doc.numPages):
-      _handle_page(i)
+      try:
+        _handle_page(i)
+      except KeyboardInterrupt:
+        print(f"Stopped at handling page {i + 1}.")
+        raise
 
   if args.page is not None:
     _handle_page(args.page - 1)
