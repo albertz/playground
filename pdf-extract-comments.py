@@ -316,6 +316,9 @@ class Page:
         ctx_w += 5
         obj["<text-ctx>"] = _text_replace(_get_rect_text_ctx(ctx_w=ctx_w))
         c2 = self._page_txt.count(obj["<text-ctx>"].replace(CaretSym, ""))
+        if ctx_w > 1000:
+          obj["ERROR"] = "text-ctx not unique in page text"
+          return obj
       assert c2 == 1, obj  # just not implemented otherwise
       page_ctx_pos = self._page_txt.find(obj["<text-ctx>"].replace(CaretSym, ""))
       assert page_ctx_pos >= 0
