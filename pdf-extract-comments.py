@@ -120,7 +120,10 @@ class Page:
     print("*** page:", page_num + 1)  # in code 0-indexed, while all apps (esp PDF viewers) use 1-index base
     pypdf2_page = env.pypdf2_doc.pages[page_num]
     assert isinstance(pypdf2_page, PyPDF2.PageObject)
-    if "/Annots" not in pypdf2_page:
+    raw_annots = pypdf2_page.get("/Annots", [])
+    # popup object itself does not have the information
+    raw_annots = [annot for annot in raw_annots if annot.get_object()["/Subtype"] not in ["/Link", "/Popup"]]
+    if not raw_annots:
       print("(No annotations - stop.)")
       return
     fitz_page = env.fitz_doc[page_num]
@@ -177,12 +180,8 @@ class Page:
 
     annots = []
     visited_irt = set()
-    for annot in pypdf2_page["/Annots"]:
+    for annot in raw_annots:
       obj = dict(annot.get_object())
-      if obj["/Subtype"] == "/Link":
-        continue
-      if obj['/Subtype'] == '/Popup':  # popup object itself does not have the information
-        continue
       # /Subtype == /Caret could be a duplicate but not always.
       # Use simple generic rule: Skip if we have seen it via /IRT before.
       if annot.idnum in visited_irt:
