@@ -9,6 +9,7 @@ session = tf.compat.v1.Session()
 
 
 # https://www.tensorflow.org/guide/function
+# https://github.com/tensorflow/tensorflow/issues/59796
 
 
 def f(x: tf.Tensor):
