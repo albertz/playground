@@ -3,11 +3,7 @@ import tensorflow as tf
 
 print("TensorFlow:", tf.__version__)
 
-
-tf.compat.v1.disable_v2_behavior()
 tf.compat.v1.disable_eager_execution()
-
-tf.compat.v1.reset_default_graph()
 
 session = tf.compat.v1.Session()
 
