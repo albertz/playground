@@ -118,7 +118,7 @@ _remove_mixin_class_in_instance(m, _AttrHookMixin)
 
 
 def _setup_hooks(obj, hooks: Dict[str, property]):
-    hooks_cls_name_postfix = f"_WithHooks{hex(id(obj))}"
+    hooks_cls_name_postfix = f"(with hooks)"
     if obj.__class__.__name__.endswith(hooks_cls_name_postfix):
         hooks_cls = obj.__class__
     else:
