@@ -116,16 +116,21 @@ _remove_mixin_class_in_instance(m, _AttrHookMixin)
 
 # Some other alternative:
 
+class _AttrHookMixinBase:
+    pass
 
-def _setup_hooks(obj, hooks: Dict[str, property]):
-    hooks_cls_name_postfix = f"_WithHooks{hex(id(obj))}"
-    if obj.__class__.__name__.endswith(hooks_cls_name_postfix):
-        hooks_cls = obj.__class__
+
+def _setup_attr_hooks(obj, hooks: Dict[str, property]):
+    attr_hooks_cls_name = f"_AttrHooksMixin"
+    attr_hooks_cls_ = [cls for cls in obj.__class__.__bases__ if cls.__name__ == attr_hooks_cls_name]
+    if attr_hooks_cls_:
+        assert len(attr_hooks_cls_) == 1
+        attr_hooks_cls = attr_hooks_cls_[0]
     else:
-        hooks_cls = type(f"{obj.__class__.__name__}{hooks_cls_name_postfix}", (obj.__class__,), {})
-        obj.__class__ = hooks_cls
+        attr_hooks_cls = type(attr_hooks_cls_name, (_AttrHookMixinBase,), {})
+        _setup_mixin_class_in_instance(obj, attr_hooks_cls)
     for name, hook in hooks.items():
-        setattr(hooks_cls, name, hook)
+        setattr(attr_hooks_cls, name, hook)
 
 
 def _get_param(self: Module):
@@ -134,6 +139,6 @@ def _get_param(self: Module):
 
 
 print("*** setup attr hooks via property ***")
-_setup_hooks(m, {"param": property(_get_param)})
+_setup_attr_hooks(m, {"param": property(_get_param)})
 print(m)
 print(m.param)
