@@ -8,20 +8,22 @@ import copyreg
 
 
 class Metaclass(type):
-    # __getstate__ and __reduce__ do not work
-    pass
+    """
+    __getstate__ and __reduce__ do not work.
+    However, we can register this via copyreg. See below.
+    """
 
 
-class Obj(metaclass=Metaclass):
-    pass
+class Base:
+    """Some base class. Does not really matter, you could also use `object`."""
 
 
 def create_cls(name):
-    return Metaclass(name, (Obj,), {})
+    return Metaclass(name, (Base,), {})
 
 
 cls = create_cls("MyCustomObj")
-print(cls)
+print(f"{cls=}")
 
 
 def _reduce_metaclass(cls):
@@ -37,9 +39,9 @@ copyreg.pickle(Metaclass, _reduce_metaclass)
 
 
 cls = pickle.loads(pickle.dumps(cls))
-print(cls)
+print(f"{cls=} after pickling")
 
 a = cls()
-print(a, a.__class__, a.__class__.__mro__)
+print(f"instance {a=}, {a.__class__=}, {a.__class__.__mro__=}")
 a = pickle.loads(pickle.dumps(a))
-print(a, a.__class__, a.__class__.__mro__)
+print(f"instance {a=} after pickling, {a.__class__=}, {a.__class__.__mro__=}")
