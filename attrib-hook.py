@@ -77,13 +77,13 @@ class _AttrHookMixin:
         print("getattribute", item)
         attr_hooks = self._attr_hooks
         if item in attr_hooks:
-            return attr_hooks[item].__get__(self, item)
+            return attr_hooks[item].get(self, item)
         return super().__getattribute__(item)
 
     def __setattr__(self, key, value):
         print("setattr", key)
         if key in self._attr_hooks:
-            return self._attr_hooks[key].__set__(self, value)
+            return self._attr_hooks[key].set(self, value)
         return super().__setattr__(key, value)
 
 
@@ -101,7 +101,9 @@ print(m.param2)
 
 
 class ParamHookDescriptor:
-    def __get__(self, obj, name):
+    # It's somewhat like a Python descriptor (https://docs.python.org/3/howto/descriptor.html)
+    # but not exactly, the __get__/__set__ API is different.
+    def get(self, obj, name):
         print("get param")
         return obj.__dict__[name] * 2
 
@@ -109,3 +111,34 @@ class ParamHookDescriptor:
 m._attr_hooks["param"] = ParamHookDescriptor()
 print(m.param)
 # m.param = "some-param-new"  # not allowed because descriptor has no __set__
+_remove_mixin_class_in_instance(m, _AttrHookMixin)
+
+
+# Some other alternative:
+
+class _AttrHookMixinBase:
+    pass
+
+
+def _setup_attr_hooks(obj, hooks: Dict[str, property]):
+    attr_hooks_cls_name = f"_AttrHooks{hex(id(obj))}"
+    attr_hooks_cls_ = [cls for cls in obj.__class__.__bases__ if cls.__name__ == attr_hooks_cls_name]
+    if attr_hooks_cls_:
+        assert len(attr_hooks_cls_) == 1
+        attr_hooks_cls = attr_hooks_cls_[0]
+    else:
+        attr_hooks_cls = type(attr_hooks_cls_name, (_AttrHookMixinBase,), {})
+        _setup_mixin_class_in_instance(obj, attr_hooks_cls)
+    for name, hook in hooks.items():
+        setattr(attr_hooks_cls, name, hook)
+
+
+def _get_param(self: Module):
+    print("get param")
+    return self.__dict__["param"] * 3
+
+
+print("*** setup attr hooks via property ***")
+_setup_attr_hooks(m, {"param": property(_get_param)})
+print(m)
+print(m.param)
