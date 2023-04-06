@@ -13,6 +13,8 @@ but instead using such an attrib-hook.
 
 
 from typing import Any, Type, Dict
+import pickle
+import copyreg
 
 
 class _AttrHookMixinDemo:
@@ -117,12 +119,16 @@ _remove_mixin_class_in_instance(m, _AttrHookMixin)
 # Some other alternative:
 
 
+class PickleableType(type):
+    pass
+
+
 def _setup_hooks(obj, hooks: Dict[str, property]):
     hooks_cls_name_postfix = f"(with hooks)"
     if obj.__class__.__name__.endswith(hooks_cls_name_postfix):
         hooks_cls = obj.__class__
     else:
-        hooks_cls = type(f"{obj.__class__.__name__}{hooks_cls_name_postfix}", (obj.__class__,), {})
+        hooks_cls = PickleableType(f"{obj.__class__.__name__}{hooks_cls_name_postfix}", (obj.__class__,), {})
         obj.__class__ = hooks_cls
     for name, hook in hooks.items():
         setattr(hooks_cls, name, hook)
@@ -135,5 +141,34 @@ def _get_param(self: Module):
 
 print("*** setup attr hooks via property ***")
 _setup_hooks(m, {"param": property(_get_param)})
+print(m)
+print(m.param)
+
+
+def _reduce_metaclass(cls):
+    metaclass = cls.__class__
+    cls_vars = dict(vars(cls))
+    cls_vars.pop("__dict__", None)
+    cls_vars.pop("__weakref__", None)
+    print("reduce metaclass", cls, metaclass, cls.__name__, cls.__bases__, vars(cls))
+    return metaclass, (cls.__name__, cls.__bases__, cls_vars)
+
+
+# pickling such module is problematic because of the dynamically created type.
+# however, with the metaclass, and copyreg, it works.
+copyreg.pickle(PickleableType, _reduce_metaclass)
+
+
+def _reduce_property(prop):
+    print("reduce property", prop)
+    return property, (prop.fget, prop.fset, prop.fdel, prop.__doc__)
+
+
+copyreg.pickle(property, _reduce_property)
+
+# now this works:
+m = pickle.loads(pickle.dumps(m))
+
+
 print(m)
 print(m.param)
