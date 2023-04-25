@@ -17,13 +17,14 @@ def pack_padded_masked_select(x: torch.Tensor, sizes: torch.Tensor) -> torch.Ten
     :param sizes: [B]
     :return: [sum(sizes),...]
     """
+    # x = x.clone(memory_format=torch.contiguous_format)  # Fixes the gradient?
     batch_dim, time_dim, *remaining_dims = x.shape
     mask = torch.arange(time_dim, device=x.device)[None, :] < sizes[:, None]  # [B,T]
     mask: torch.Tensor
-    mask_bc = mask.view(batch_dim, time_dim, *[1] * len(remaining_dims))  # [B,T,...]
+    mask_bc = mask.reshape(batch_dim, time_dim, *[1] * len(remaining_dims))  # [B,T,...]
     # This, together with convolution, will cause a bad gradient?
     packed = torch.masked_select(x, mask_bc)
-    packed = packed.view(-1, *remaining_dims)
+    packed = packed.reshape(-1, *remaining_dims)
     return packed
 
 
@@ -80,6 +81,19 @@ def loss_padded(logits: torch.Tensor, targets: torch.Tensor, sizes: torch.Tensor
     return loss
 
 
+def trace_back_grad_funcs(var_grad_fn):
+    # https://stackoverflow.com/questions/52988876/how-can-i-visualize-what-happens-during-loss-backward
+    print(var_grad_fn)
+    for n in var_grad_fn.next_functions:
+        if n[0]:
+            try:
+                tensor = getattr(n[0], 'variable')
+                print(n[0])
+                print('Tensor with grad found:', tensor)
+            except AttributeError as e:
+                trace_back_grad_funcs(n[0])
+
+
 try:
     import better_exchook
     better_exchook.install()
@@ -111,21 +125,5 @@ for loss_fn in [loss_packed, loss_padded, loss_packed_index_select, loss_packed_
     print("loss:", loss)
     print("bias grad:", torch.autograd.grad(loss, net.bias, create_graph=True))
 
-
-# https://stackoverflow.com/questions/52988876/how-can-i-visualize-what-happens-during-loss-backward
-print('Tracing back tensors:')
-
-
-def trace_back_grad_funcs(var_grad_fn):
-    print(var_grad_fn)
-    for n in var_grad_fn.next_functions:
-        if n[0]:
-            try:
-                tensor = getattr(n[0], 'variable')
-                print(n[0])
-                print('Tensor with grad found:', tensor)
-            except AttributeError as e:
-                trace_back_grad_funcs(n[0])
-
-
-trace_back_grad_funcs(loss.grad_fn)
+    print('Tracing back tensors:')
+    trace_back_grad_funcs(loss.grad_fn)
