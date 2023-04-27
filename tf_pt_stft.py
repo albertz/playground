@@ -9,6 +9,7 @@ import numpy.testing
 import tensorflow as tf
 import torch
 import librosa
+import scipy
 
 
 try:
@@ -109,15 +110,25 @@ y_lr_np = librosa.stft(
 )
 y_lr_np = y_lr_np.transpose(0, 2, 1)
 
+_, _, y_sp_np = scipy.signal.stft(
+    x, nperseg=frame_length, noverlap=frame_length - frame_step, nfft=fft_length,
+    padded=False, boundary=None)
+y_sp_np = y_sp_np.transpose(0, 2, 1)
+sp_inv_scale = numpy.sqrt(scipy.signal.get_window("hann", frame_length, fftbins=True).sum()**2)
+y_sp_np *= sp_inv_scale
+
 
 print("TF shape:", y_tf_np.shape)
 print("TF-like in NP shape:", y_tf_like_np.shape)
 print("TF-like in PT shape:", y_tf_like_pt_np.shape)
+print("Scipy shape:", y_sp_np.shape)
 
-assert y_tf_np.shape == y_tf_like_pt_np.shape == y_tf_like_np.shape, (
-    f"TF shape {y_tf_np.shape} == TF-like PT shape {y_tf_like_pt_np.shape} == TF-like NP shape {y_tf_like_np.shape}")
+assert y_tf_np.shape == y_tf_like_pt_np.shape == y_tf_like_np.shape == y_sp_np.shape, (
+    f"TF shape {y_tf_np.shape} == TF-like PT shape {y_tf_like_pt_np.shape}"
+    f"== TF-like NP shape {y_tf_like_np.shape} == Scipy shape {y_sp_np.shape}")
 numpy.testing.assert_allclose(y_tf_np, y_tf_like_np, rtol=1e-5, atol=1e-5, err_msg="TF != TF-like NP")
 numpy.testing.assert_allclose(y_tf_np, y_tf_like_pt_np, rtol=1e-5, atol=1e-5, err_msg="TF != TF-like PT")
+numpy.testing.assert_allclose(y_tf_np, y_sp_np, rtol=1e-5, atol=1e-5, err_msg="TF != Scipy")
 
 print("PT shape:", y_pt_np.shape)
 print("PT-like in NP shape:", y_pt_like_np.shape)
