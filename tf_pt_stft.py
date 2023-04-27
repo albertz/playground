@@ -8,6 +8,7 @@ import numpy
 import numpy.testing
 import tensorflow as tf
 import torch
+import librosa
 
 
 try:
@@ -102,6 +103,13 @@ for b in range(y_pt_like_np.shape[0]):
 print("PT-like in pure Numpy:")
 print(y_pt_like_np)
 
+y_lr_np = librosa.stft(
+    x, n_fft=fft_length, hop_length=frame_step, win_length=frame_length,
+    center=False
+)
+y_lr_np = y_lr_np.transpose(0, 2, 1)
+
+
 print("TF shape:", y_tf_np.shape)
 print("TF-like in NP shape:", y_tf_like_np.shape)
 print("TF-like in PT shape:", y_tf_like_pt_np.shape)
@@ -113,6 +121,8 @@ numpy.testing.assert_allclose(y_tf_np, y_tf_like_pt_np, rtol=1e-5, atol=1e-5, er
 
 print("PT shape:", y_pt_np.shape)
 print("PT-like in NP shape:", y_pt_like_np.shape)
-assert y_pt_np.shape == y_pt_like_np.shape, (
-    f"PT shape {y_pt_np.shape} != PT-like NP shape {y_pt_like_np.shape}")
+print("Librosa shape:", y_lr_np.shape)
+assert y_pt_np.shape == y_pt_like_np.shape == y_lr_np.shape, (
+    f"PT shape {y_pt_np.shape} == PT-like NP shape {y_pt_like_np.shape} == Librosa shape {y_lr_np.shape}")
 numpy.testing.assert_allclose(y_pt_np, y_pt_like_np, rtol=1e-5, atol=1e-5, err_msg="PT != PT-like NP")
+numpy.testing.assert_allclose(y_pt_np, y_lr_np, rtol=1e-5, atol=1e-5, err_msg="PT != Librosa")
