@@ -27,12 +27,14 @@ n_time = 16
 x = rnd.randn(n_batch, n_time)
 
 
+# frame_step has no influence on the tests, however frame_step 1 is easier for debugging and understanding.
 frame_step = 1
-# frame_length = fft_length, and power of two (e.g. 8), or just even, then looks the same
-frame_length = 6
+# frame_length = fft_length, and even, then all agree.
+# frame_length < fft_length, and even, they disagree, but we can replicate it.
+# frame_length uneven, it's even stranger.
+# fft_length uneven does not seem to matter, they still all agree.
+frame_length = 5
 fft_length = 8
-
-assert fft_length % 2 == 0 and frame_length % 2 == 0  # broken otherwise?
 
 x_tf = tf.convert_to_tensor(x)
 y_tf = tf.signal.stft(x, frame_step=frame_step, frame_length=frame_length, fft_length=fft_length)
@@ -42,8 +44,8 @@ y_tf_np = y_tf.numpy()
 x_pt = torch.from_numpy(x)
 x_pt = torch.nn.functional.pad(x_pt, (0, (fft_length - frame_length)))
 
-window_pt = torch.hann_window(frame_length)
-window_pt = torch.nn.functional.pad(window_pt, (0, (fft_length - frame_length)))
+window_pt = torch.hann_window(frame_length - frame_length % 2)
+window_pt = torch.nn.functional.pad(window_pt, (0, (fft_length - frame_length + frame_length % 2)))
 
 y_tf_like_pt = torch.stft(
     x_pt,
@@ -76,7 +78,7 @@ def ceildiv(a, b):
 
 y_tf_like_np = numpy.zeros(
     (n_batch, ceildiv(n_time - frame_length + 1, frame_step), fft_length // 2 + 1), dtype="complex64")
-window_np = numpy.hanning(frame_length + 1)[:frame_length]
+window_np = numpy.hanning(frame_length + 1 - frame_length % 2)[:frame_length]
 for b in range(y_tf_like_np.shape[0]):
     for t in range(y_tf_like_np.shape[1]):
         for f in range(y_tf_like_np.shape[2]):
@@ -114,9 +116,8 @@ _, _, y_sp_np = scipy.signal.stft(
     x, nperseg=frame_length, noverlap=frame_length - frame_step, nfft=fft_length,
     padded=False, boundary=None)
 y_sp_np = y_sp_np.transpose(0, 2, 1)
-sp_inv_scale = numpy.sqrt(scipy.signal.get_window("hann", frame_length, fftbins=True).sum()**2)
+sp_inv_scale = numpy.sqrt(scipy.signal.get_window("hann", frame_length - (frame_length % 2), fftbins=True).sum()**2)
 y_sp_np *= sp_inv_scale
-
 
 print("TF shape:", y_tf_np.shape)
 print("TF-like in NP shape:", y_tf_like_np.shape)
@@ -128,7 +129,10 @@ assert y_tf_np.shape == y_tf_like_pt_np.shape == y_tf_like_np.shape == y_sp_np.s
     f"== TF-like NP shape {y_tf_like_np.shape} == Scipy shape {y_sp_np.shape}")
 numpy.testing.assert_allclose(y_tf_np, y_tf_like_np, rtol=1e-5, atol=1e-5, err_msg="TF != TF-like NP")
 numpy.testing.assert_allclose(y_tf_np, y_tf_like_pt_np, rtol=1e-5, atol=1e-5, err_msg="TF != TF-like PT")
-numpy.testing.assert_allclose(y_tf_np, y_sp_np, rtol=1e-5, atol=1e-5, err_msg="TF != Scipy")
+if frame_length % 2 == 0:
+    numpy.testing.assert_allclose(y_tf_np, y_sp_np, rtol=1e-5, atol=1e-5, err_msg="TF != Scipy")
+else:
+    print("Warning: TF == SciPy not true?", numpy.allclose(y_tf_np, y_sp_np, rtol=1e-5, atol=1e-5))
 
 print("PT shape:", y_pt_np.shape)
 print("PT-like in NP shape:", y_pt_like_np.shape)
