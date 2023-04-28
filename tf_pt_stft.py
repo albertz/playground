@@ -2,6 +2,8 @@
 tf.signal.stft vs torch.stft
 
 https://github.com/pytorch/pytorch/issues/100177
+https://github.com/librosa/librosa/issues/695
+https://github.com/librosa/librosa/issues/596
 """
 
 import numpy
@@ -112,8 +114,15 @@ y_lr_np = librosa.stft(
 )
 y_lr_np = y_lr_np.transpose(0, 2, 1)
 
+window_np = numpy.hanning(frame_length + 1 - frame_length % 2)[:frame_length]
 _, _, y_sp_np = scipy.signal.stft(
-    x, nperseg=frame_length, noverlap=frame_length - frame_step, nfft=fft_length,
+    x,
+    nperseg=frame_length,
+    noverlap=frame_length - frame_step,
+    nfft=fft_length,
+    # With frame_length even, it is consistent.
+    # With frame_length uneven, the windowing logic is slightly different.
+    window="hann" if frame_length % 2 == 0 else window_np,
     padded=False, boundary=None)
 y_sp_np = y_sp_np.transpose(0, 2, 1)
 sp_inv_scale = numpy.sqrt(scipy.signal.get_window("hann", frame_length - (frame_length % 2), fftbins=True).sum()**2)
@@ -129,10 +138,7 @@ assert y_tf_np.shape == y_tf_like_pt_np.shape == y_tf_like_np.shape == y_sp_np.s
     f"== TF-like NP shape {y_tf_like_np.shape} == Scipy shape {y_sp_np.shape}")
 numpy.testing.assert_allclose(y_tf_np, y_tf_like_np, rtol=1e-5, atol=1e-5, err_msg="TF != TF-like NP")
 numpy.testing.assert_allclose(y_tf_np, y_tf_like_pt_np, rtol=1e-5, atol=1e-5, err_msg="TF != TF-like PT")
-if frame_length % 2 == 0:
-    numpy.testing.assert_allclose(y_tf_np, y_sp_np, rtol=1e-5, atol=1e-5, err_msg="TF != Scipy")
-else:
-    print("Warning: TF == SciPy not true?", numpy.allclose(y_tf_np, y_sp_np, rtol=1e-5, atol=1e-5))
+numpy.testing.assert_allclose(y_tf_np, y_sp_np, rtol=1e-5, atol=1e-5, err_msg="TF != Scipy")
 
 print("PT shape:", y_pt_np.shape)
 print("PT-like in NP shape:", y_pt_like_np.shape)
