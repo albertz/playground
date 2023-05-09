@@ -9,6 +9,7 @@ import jax
 import psutil
 import matplotlib.pyplot as plt
 import os
+import time
 from jax.experimental import host_callback as hcb
 
 
@@ -55,7 +56,7 @@ def _id_with_check_bwd(res, g):
 def _measure_mem(*_):
     mem = psutil.Process().memory_info().rss
     print(f"n={n}, mem={mem}")
-    ys.append(mem)
+    memory_per_n.append(mem)
 
 
 id_with_check.defvjp(_id_with_check_fwd, _id_with_check_bwd)
@@ -65,15 +66,34 @@ os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 jax.config.update('jax_platform_name', 'cpu')
 
 
-xs = list(range(5, 10_000, 500))
-ys = []
+ns = [5, 10, 20, 50, 100, 500, 1000, 1500, 2000, 3000, 4000, 5000, 7_500, 10_000, 15_000, 20_000, 35_000, 50_000]
+memory_per_n = []
+runtime_per_n = []
 
 
-for n in xs:
+for n in ns:
+    start = time.time()
     y = test_scan(n)
     y.block_until_ready()
+    runtime = time.time() - start
+    print(f"n={n}, runtime={runtime}")
+    runtime_per_n.append(runtime)
 
 
-fig, ax = plt.subplots()
-ax.plot(xs, ys)
+fig, ax1 = plt.subplots()
+
+color = 'tab:red'
+ax1.set_xlabel('n')
+ax1.set_ylabel('runtime', color=color)
+ax1.plot(ns, runtime_per_n, color=color)
+ax1.tick_params(axis='y', labelcolor=color)
+
+ax2 = ax1.twinx()
+
+color = 'tab:blue'
+ax2.set_ylabel('memory', color=color)
+ax2.plot(ns, memory_per_n, color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+
+fig.tight_layout()
 plt.show()
