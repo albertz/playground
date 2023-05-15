@@ -8,11 +8,6 @@ import numpy
 import numpy.testing
 
 
-torch.set_float32_matmul_precision("highest")
-tf.config.threading.set_inter_op_parallelism_threads(1)
-tf.config.threading.set_intra_op_parallelism_threads(1)
-
-
 rnd = numpy.random.RandomState(42)
 n_time = 20
 n_batch = 5
