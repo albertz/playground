@@ -11,13 +11,18 @@ import numpy.testing
 rnd = numpy.random.RandomState(42)
 n_time = 20
 n_batch = 5
-n_in = 7
+n_in = 512
 n_dim = 1024
 forget_bias = 1.
 
-
-kernel = rnd.normal(scale=0.5, size=(n_in + n_dim, 4 * n_dim))
-bias = rnd.normal(scale=0.5, size=(4 * n_dim,))
+fan_in = n_in + n_dim
+fan_out = 4 * n_dim
+scale = 1. / max(1., (fan_in + fan_out) / 2.)
+limit = numpy.sqrt(3.0 * scale)
+print("** Xavier limit:", limit)
+kernel = rnd.uniform(-limit, limit, size=(n_in + n_dim, 4 * n_dim))
+# bias = rnd.normal(scale=0.1, size=(4 * n_dim,))
+bias = numpy.zeros((4 * n_dim,))
 kernel_tf = tf.constant(kernel, dtype=tf.float32)
 bias_tf = tf.constant(bias, dtype=tf.float32)
 kernel_pt = torch.tensor(kernel, dtype=torch.float32)
@@ -38,7 +43,7 @@ def _cmp(v_tf: tf.Tensor, v_pt: torch.Tensor, name: str):
 
 for t in range(n_time):
     print("*** t =", t)
-    x = rnd.uniform(-1., 1., size=(n_batch, n_in))
+    x = rnd.normal(scale=1., size=(n_batch, n_in))
     x_tf = tf.constant(x, dtype=tf.float32)
 
     parts0_tf = tf.matmul(
