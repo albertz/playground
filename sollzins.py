@@ -7,7 +7,8 @@ parser.add_argument("--name", type=str, help="Name des Kredits, der Bank, etc", 
 parser.add_argument("--kredit", type=float, help="Kreditbetrag in Euro", required=True)
 parser.add_argument("--sollzins", type=float, help="Sollzins in Prozent", required=True)
 parser.add_argument("--rate", type=float, help="Monatliche Rate in Euro", required=True)
-parser.add_argument("--laufzeit", type=int, help="Laufzeit in Monaten", required=True)
+parser.add_argument("--laufzeit", type=int, help="Laufzeit in Monaten")
+parser.add_argument("--extra-tilgung", type=float, default=0.0, help="Zusätzliche monatige Tilgung in Euro")
 parser.add_argument(
     "--target-laufzeit", type=int, required=False,
     help="gewünschte Laufzeit in Monaten (optional, weniger durch Tilgung pro Monat)")
@@ -19,14 +20,23 @@ effektiver_zins_year = (1 + sollzins_year / 12) ** 12 - 1
 rate_month = args.rate
 print("Name:", args.name)
 print(f"Start: {rest_kredit:.2f} Euro")
-print(f"Laufzeit: {args.laufzeit // 12} Jahre, {args.laufzeit % 12} Monate")
+if args.laufzeit and args.laufzeit > 0:
+    print(f"Laufzeit: {args.laufzeit // 12} Jahre, {args.laufzeit % 12} Monate")
+else:
+    print("Laufzeit: bis abbezahlt")
+    args.laufzeit = None
 print(f"Monatliche Rate: {rate_month:.2f} Euro")
+print(f"Zusätzliche monatige Tilgung: {args.extra_tilgung:.2f} Euro")
+print(f"Gesamt monatliche Rate: {rate_month + (args.extra_tilgung):.2f} Euro")
 print(f"Sollzins: {sollzins_year * 100:.2f} % p.a.")
 print(f"Effektiver Zins: {effektiver_zins_year * 100:.2f} % p.a.")
 
 
-def iter_months(*, extra_tilgung: float = 0.0, laufzeit=args.laufzeit, file=sys.stdout, exit_on_zero=False):
+def iter_months(*, extra_tilgung: float = args.extra_tilgung, laufzeit: int = args.laufzeit, file=sys.stdout, exit_on_zero=False):
     rest_kredit = args.kredit
+    if not laufzeit:
+        laufzeit = sys.maxsize
+        exit_on_zero = True
     for month in range(laufzeit):
         rest_kredit += rest_kredit * sollzins_year / 12
         rest_kredit -= rate_month
@@ -50,11 +60,11 @@ def calc_num_months(*, extra_tilgung: float = 0.0):
 
 
 if args.target_laufzeit:
-    assert args.target_laufzeit <= args.laufzeit
+    assert not args.laufzeit or args.target_laufzeit <= args.laufzeit
     target_num_months = args.target_laufzeit
     print(f"Gewünschte Laufzeit: {target_num_months // 12} Jahre, {target_num_months % 12} Monate")
     print("Berechne zusätzliche monatige Tilgung...")
-    target_extra_tilgung = 0.0
+    target_extra_tilgung = args.extra_tilgung
     while True:
         num_months = calc_num_months(extra_tilgung=target_extra_tilgung)
         if num_months <= target_num_months:
