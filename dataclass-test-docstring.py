@@ -5,7 +5,8 @@ import dataclasses
 @dataclasses.dataclass
 class F:
     """
-    :param x: foo
+    Attributes:
+        x: foo
     """
 
     x: int
