@@ -25,6 +25,6 @@ compile_args = (
     [cpp_bin] + py_compile_flags + tf_compile_flags +
     ["cpp-link-py-tf.cpp", "-o", "cpp-link-py-tf.bin"] +
     py_link_flags + tf_link_flags)
-print("$", " ".join(map(repr, compile_args)))
+print("$", " ".join(compile_args))
 subprocess.check_call(compile_args)
 
