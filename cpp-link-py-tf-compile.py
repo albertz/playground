@@ -5,9 +5,9 @@ import distutils.sysconfig
 import tensorflow as tf
 
 py_compile_vars = distutils.sysconfig.get_config_vars()
-py_compile_flags = py_compile_vars["CFLAGS"].split(" ")
+py_compile_flags = py_compile_vars["CFLAGS"].split() if py_compile_vars["CFLAGS"] else []
 py_compile_flags += ["-I", py_compile_vars["INCLUDEPY"]]
-py_link_flags = py_compile_vars["LDFLAGS"].split(" ")
+py_link_flags = py_compile_vars["LDFLAGS"].split() if py_compile_vars["LDFLAGS"] else []
 if py_compile_vars["LIBDIR"]:
     py_link_flags += [
         "-L", py_compile_vars["LIBDIR"],
