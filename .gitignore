@@ -13,4 +13,5 @@
 *.dSYM
 .history*
 *.dummy
+*.log
 /.idea
