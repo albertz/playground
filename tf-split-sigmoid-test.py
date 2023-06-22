@@ -2,6 +2,8 @@
 
 """
 Via Eugen Beck.
+
+https://github.com/tensorflow/tensorflow/issues/60941
 """
 
 import math
