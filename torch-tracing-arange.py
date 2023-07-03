@@ -21,7 +21,7 @@ torch.onnx.export(
     verbose=True,
     input_names=["input"],
     output_names=["output"],
-    dynamic_axes={"input": [0], "output": [0]}
+    dynamic_axes={"input": {0: "time"}, "output": {0: "time"}}
 )
 
 ort_session = onnxruntime.InferenceSession("test.onnx")
