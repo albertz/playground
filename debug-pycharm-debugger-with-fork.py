@@ -7,12 +7,24 @@ import time
 import multiprocessing
 
 
-def main():
+def main1():
     mp_manager = multiprocessing.Manager()
 
     print("step 1")
     print("step 2")
     time.sleep(3)
+
+
+
+def main1a():
+    multiprocessing.set_start_method('spawn')
+
+    mp_manager = multiprocessing.Manager()
+
+    print("step 1")
+    print("step 2")
+    time.sleep(3)
+
 
 
 def main2():
@@ -30,4 +42,4 @@ def main2():
 
 
 if __name__ == '__main__':
-    main()
+    main1()
