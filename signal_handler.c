@@ -1,3 +1,5 @@
+// Code under the MIT license, copyright Albert Zeyer.
+
 // compile:
 // cc signal_handler.c -fPIC -shared -o signal_handler.so
 
@@ -9,11 +11,11 @@
 
 
 
-sig_t old_signal_handler[32];
+sig_t old_signal_handler[SIGRTMAX + 1];
 
 
 void signal_handler(int sig) {
-  void *array[100];
+  void *array[16 * 1024];
   size_t size;
 
   // get void*'s for all entries on the stack
