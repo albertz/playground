@@ -1,4 +1,5 @@
 // Code under the MIT license, copyright Albert Zeyer.
+// Reuses NSIG definition from Ruby code.
 
 // compile:
 // cc signal_handler.c -fPIC -shared -o signal_handler.so
