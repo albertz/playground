@@ -3,6 +3,9 @@ run::
     python -m torch.distributed.run --standalone --nnodes 1 --nproc-per-node=2 torch-distributed-demo.py
 
 https://pytorch.org/docs/stable/notes/ddp.html
+
+https://github.com/rwth-i6/returnn/issues/1469
+https://github.com/pytorch/pytorch/issues/114765
 """
 
 import os
