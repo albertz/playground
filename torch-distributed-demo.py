@@ -6,7 +6,6 @@ https://pytorch.org/docs/stable/notes/ddp.html
 """
 
 import os
-import io
 import sys
 import time
 import subprocess as sp
@@ -19,8 +18,13 @@ from torch.nn.parallel import DistributedDataParallel
 
 def _debug_mem(msg):
     if local_rank == 1:
-        print(msg)
-        sp.call(f"nvidia-smi | grep {os.getpid()}", shell=True, stdout=sys.stdout)
+        print(f"*** {msg} {{")
+        sp.call(
+            f"(nvidia-smi; echo '*** {msg} -- {os.getpid()} }}'; ) | grep {os.getpid()}",
+            shell=True,
+            stdout=sys.stdout,
+            stderr=sys.stdout,
+        )
         sys.stdout.flush()
 
 
@@ -64,10 +68,9 @@ while True:
     optimizer.step()
 
     print(f"[{local_rank}] step {step}")
-    _debug_mem("step {step}")
+    _debug_mem(f"step {step}")
 
     if step >= 3:
         break
-
     time.sleep(0.5)
     step += 1
