@@ -19,6 +19,7 @@ from torch.nn.parallel import DistributedDataParallel
 def _debug_mem(msg):
     if local_rank == 1:
         print(f"*** {msg} {{")
+        print("reserved mem GPU0:", torch.cuda.memory_reserved(0))
         sp.call(
             f"(nvidia-smi; echo '*** {msg} -- {os.getpid()} }}'; ) | grep {os.getpid()}",
             shell=True,
@@ -34,7 +35,7 @@ local_size = int(os.environ["LOCAL_WORLD_SIZE"])
 dev = torch.device(f"cuda:{local_rank}")
 print(f"Start running torch distributed training on local rank {local_rank}/{local_size}.")
 _debug_mem("start")
-torch.cuda.set_device(dev)
+# torch.cuda.set_device(dev)  # -- should not be necessary, but currently is
 
 
 class Model(nn.Module):
