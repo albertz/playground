@@ -34,6 +34,7 @@ local_size = int(os.environ["LOCAL_WORLD_SIZE"])
 dev = torch.device(f"cuda:{local_rank}")
 print(f"Start running torch distributed training on local rank {local_rank}/{local_size}.")
 _debug_mem("start")
+torch.cuda.set_device(dev)
 
 
 class Model(nn.Module):
