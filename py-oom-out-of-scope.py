@@ -46,6 +46,7 @@ def print_tb(tb):
     while tb:
         frame_i = tb.tb_frame.f_locals.get("i")
         print(f"  {tb.tb_frame.f_code.co_name}: i={frame_i}")
+        # tb.tb_frame.f_locals.clear()  # another alternative
         tb = tb.tb_next
 
 
