@@ -45,8 +45,9 @@ def print_tb(tb):
 
 
 def clear_tb(tb):
+    print("Clearing stack:")
     while tb:
-        print(tb.tb_frame.f_locals)
+        print(tb.tb_frame)
         try:
             tb.tb_frame.clear()
         except RuntimeError:
