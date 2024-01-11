@@ -1,4 +1,9 @@
 
+"""
+https://github.com/python/cpython/issues/113939
+https://github.com/python/cpython/pull/113940
+"""
+
 import traceback
 import gc
 
