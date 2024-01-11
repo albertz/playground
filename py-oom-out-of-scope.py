@@ -22,12 +22,7 @@ def deep(i: int):
 
 
 def func():
-    prev_exc = None
-    for i in range(10):
-        if prev_exc:
-            # traceback.clear_frames(prev_exc.__traceback__)
-            clear_tb(prev_exc.__traceback__)
-            prev_exc = None
+    for i in range(5):
         gc.collect()
         print("** i:", i)
         try:
@@ -35,9 +30,10 @@ def func():
         except Exception as exc:
             print("caught", exc)
             print_tb(exc.__traceback__)
-            prev_exc = exc
+            # traceback.clear_frames(prev_exc.__traceback__)
+            clear_tb(exc.__traceback__)
             continue  # continue with next i
-        print("func", i, "done")
+        print("deep", i, "done")
 
 
 def print_tb(tb):
