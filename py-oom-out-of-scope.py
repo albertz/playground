@@ -4,12 +4,11 @@ https://github.com/python/cpython/issues/113939
 https://github.com/python/cpython/pull/113940
 """
 
-import traceback
 import gc
 
 
 _PrintTbSkipCurFrame = False
-_CallClearTb = True
+_CallClearTb = False
 _ClearTbWithWorkaround = False
 
 
@@ -86,7 +85,7 @@ if __name__ == '__main__':
 
     try:
         raise Exception("foo")
-    except Exception as exc:
-        print_tb(exc.__traceback__)
+    except Exception as _exc:
+        print_tb(_exc.__traceback__)
 
     print("exit")
