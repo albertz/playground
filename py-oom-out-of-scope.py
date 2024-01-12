@@ -46,7 +46,11 @@ def print_tb(tb):
     while tb:
         frame_i = tb.tb_frame.f_locals.get("i")
         print(f"  {tb.tb_frame.f_code.co_name}: i={frame_i}")
-        # tb.tb_frame.f_locals.clear()  # another alternative
+        print("    locals is globals:", tb.tb_frame.f_locals is tb.tb_frame.f_globals)
+        print("    local var names:", tb.tb_frame.f_code.co_varnames, "num locals:", tb.tb_frame.f_code.co_nlocals)
+
+        # if tb.tb_frame.f_code.co_nlocals > 0:
+        #     tb.tb_frame.f_locals.clear()  # another alternative
         tb = tb.tb_next
 
 
@@ -67,4 +71,10 @@ def clear_tb(tb):
 
 if __name__ == '__main__':
     func()
+
+    try:
+        raise Exception("foo")
+    except Exception as exc:
+        print_tb(exc.__traceback__)
+
     print("exit")
