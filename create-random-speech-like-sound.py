@@ -39,25 +39,22 @@ def main():
     rnd_frequencies = (
             (rnd.normal(size=[int(args.duration * args.num_random_freqs_per_sec) + 1]) * 0.5 + 1.0)
             * args.frequency)
-    data = io.BytesIO()
-    struct_fmt = "<" + {1: "b", 2: "h", 4: "i"}[args.sample_width_bytes]
-    t = 0.0
-    for i in range(num_frames):
-        freq_idx_f = (i * args.num_random_freqs_per_sec) / args.rate
-        freq_idx = int(freq_idx_f)
-        next_freq_idx = min(freq_idx + 1, len(rnd_frequencies) - 1)
-        freq = rnd_frequencies[freq_idx] * (1 - freq_idx_f % 1) + rnd_frequencies[next_freq_idx] * (freq_idx_f % 1)
 
-        t += freq / args.rate
+    frame_idxs = np.arange(num_frames, dtype=np.int64)
+    freq_idx_f = (frame_idxs * args.num_random_freqs_per_sec) / args.rate
+    freq_idx = freq_idx_f.astype(np.int64)
+    next_freq_idx = np.minimum(freq_idx + 1, len(rnd_frequencies) - 1)
+    freq = rnd_frequencies[freq_idx] * (1 - freq_idx_f % 1) + rnd_frequencies[next_freq_idx] * (freq_idx_f % 1)
 
-        sample = np.sin(2 * np.pi * t)
+    ts = np.cumsum(freq / args.rate)
+    samples = np.sin(2 * np.pi * ts)
 
-        sample *= args.amplitude * (0.666 + 0.333 * np.sin(2 * np.pi * i * 2 / args.rate))
+    samples *= args.amplitude * (0.666 + 0.333 * np.sin(2 * np.pi * frame_idxs * 2 / args.rate))
+    samples_int = (
+        (samples * (2 ** (8 * args.sample_width_bytes - 1) - 1))
+        .astype({1: np.int8, 2: np.int16, 4: np.int32}[args.sample_width_bytes]))
 
-        sample_int = int(sample * (2 ** (8 * args.sample_width_bytes - 1) - 1))
-        data.write(struct.pack(struct_fmt, sample_int))
-
-    f.writeframes(data.getvalue())
+    f.writeframes(samples_int.tobytes())
     f.close()
 
 
