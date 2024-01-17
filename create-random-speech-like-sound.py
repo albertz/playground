@@ -24,8 +24,9 @@ def main():
     group.add_argument("--duration", type=float, default=5.0, help="in seconds")
     group.add_argument("--frequency", type=float, default=150.0, help="default 150, in between male/female")
     group.add_argument("--amplitude", type=float, default=0.3)
-    group.add_argument("--num-random-freqs-per-sec", type=int, default=15, help="like speech rate")
+    group.add_argument("--num-random-freqs-per-sec", type=float, default=15, help="like speech rate")
     group.add_argument("--random-seed", type=int, default=42)
+    group.add_argument("--amplitude-frequency", type=float, default=2)
 
     args = arg_parser.parse_args()
 
@@ -49,7 +50,8 @@ def main():
     ts = np.cumsum(freq / args.rate)
     samples = np.sin(2 * np.pi * ts)
 
-    samples *= args.amplitude * (0.666 + 0.333 * np.sin(2 * np.pi * frame_idxs * 2 / args.rate))
+    samples *= args.amplitude * (0.666 + 0.333 * np.sin(2 * np.pi * frame_idxs * args.amplitude_frequency / args.rate))
+
     samples_int = (
         (samples * (2 ** (8 * args.sample_width_bytes - 1) - 1))
         .astype({1: np.int8, 2: np.int16, 4: np.int32}[args.sample_width_bytes]))
