@@ -52,7 +52,7 @@ def main():
 
         sample = np.sin(2 * np.pi * t)
 
-        sample *= min(1.0, args.amplitude * (1.0 + 0.5 * np.sin(2 * np.pi * i / args.rate)))
+        sample *= args.amplitude * (0.666 + 0.333 * np.sin(2 * np.pi * i * 2 / args.rate))
 
         sample_int = int(sample * (2 ** (8 * args.sample_width_bytes - 1) - 1))
         data.write(struct.pack(struct_fmt, sample_int))
