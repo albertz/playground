@@ -28,6 +28,8 @@ def main():
 
     args = arg_parser.parse_args()
 
+    torch.manual_seed(args.random_seed)
+
     f = wave.open(args.output_file, "wb")
     f.setframerate(args.rate)
     f.setnchannels(args.channels)
