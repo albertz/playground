@@ -103,10 +103,13 @@ def _integrate_rnd_frequencies(
     samples_per_sec: int,
     num_random_freqs_per_sec: float,
 ) -> torch.Tensor:
-    rnd_freqs = (
-        torch.randn(size=(int(len(frame_idxs) * num_random_freqs_per_sec / samples_per_sec) + 1, batch_size)) * 0.5
-        + 1.0
-    ) * base_frequency  # [T',B]
+    rnd_freqs = torch.empty(
+        size=(int(len(frame_idxs) * num_random_freqs_per_sec / samples_per_sec) + 1, batch_size),
+        dtype=torch.float32,
+    )  # [T',B]
+    torch.nn.init.trunc_normal_(rnd_freqs, a=-1.0, b=1.0)
+    rnd_freqs = (rnd_freqs * 0.5 + 1.0) * base_frequency  # [T',B]
+    print(rnd_freqs)
 
     freq_idx_f = (frame_idxs * num_random_freqs_per_sec) / samples_per_sec
     freq_idx = freq_idx_f.to(torch.int64)
