@@ -77,10 +77,22 @@ def main():
 
     _setup_paths()
 
+    w, h = _get_size_from_jpeg(args.input_file)
+    print("Input size:", w, h)
+    # Need to crop to even size, otherwise Ultra HDR encoding fails.
+    w -= w % 2
+    h -= h % 2
+    print("Output (cropped) size:", w, h)
+
     yuv_file = args.output_file + ".yuv"
-    _make_yuv_p010(args.input_file, yuv_file)
+    _make_yuv_p010(args.input_file, yuv_file, (w, h))
     atexit.register(os.remove, yuv_file)  # yuv file not needed anymore
-    _make_jpeg_from_yuv_p010(args.input_file, yuv_file, args.output_file)
+
+    jpeg_cropped_file = args.output_file + ".cropped.jpeg"
+    _make_jpeg_cropped(args.input_file, jpeg_cropped_file, (w, h))
+    atexit.register(os.remove, jpeg_cropped_file)  # cropped jpeg file not needed anymore
+
+    _make_hdr_jpeg_from_yuv_p010_and_sdr_jpeg(jpeg_cropped_file, yuv_file, args.output_file, (w, h))
 
 
 def _setup_paths():
@@ -95,16 +107,31 @@ def _setup_paths():
     assert ffmpeg_path is not None, "ffmpeg not installed?"
 
 
-def _make_yuv_p010(input_jpeg_file: str, output_yuv_p010_file: str):
+def _make_yuv_p010(input_jpeg_file: str, output_yuv_p010_file: str, size: Tuple[int, int]):
     """Make YUV P010 from JPEG"""
-    args = [ffmpeg_path, "-i", input_jpeg_file, "-vf", "format=p010", output_yuv_p010_file]
+    args = [
+        ffmpeg_path,
+        "-i",
+        input_jpeg_file,
+        "-filter:v",
+        f"crop={size[0]}:{size[1]}:0:0,format=p010",
+        output_yuv_p010_file,
+    ]
     print("$", " ".join(args))
     subprocess.check_call(args)
 
 
-def _make_jpeg_from_yuv_p010(input_jpeg_sdr_file: str, input_yuv_p010_file: str, output_jpeg_hdr_file: str):
-    """Make JPEG from YUV P010"""
-    w, h = _get_size_from_jpeg(input_jpeg_sdr_file)
+def _make_jpeg_cropped(input_jpeg_file: str, output_jpeg_file: str, size: Tuple[int, int]):
+    """Make JPEG cropped"""
+    args = [ffmpeg_path, "-i", input_jpeg_file, "-filter:v", f"crop={size[0]}:{size[1]}:0:0", output_jpeg_file]
+    print("$", " ".join(args))
+    subprocess.check_call(args)
+
+
+def _make_hdr_jpeg_from_yuv_p010_and_sdr_jpeg(
+    input_jpeg_sdr_file: str, input_yuv_p010_file: str, output_jpeg_hdr_file: str, size: Tuple[int, int]
+):
+    """Make HDR JPEG (Ultra HDR) from YUV P010 and SDR JPEG"""
     args = [
         ultra_hdr_app_path,
         "-m",
@@ -114,9 +141,9 @@ def _make_jpeg_from_yuv_p010(input_jpeg_sdr_file: str, input_yuv_p010_file: str,
         "-i",
         input_jpeg_sdr_file,
         "-w",
-        str(w),
+        str(size[0]),
         "-h",
-        str(h),
+        str(size[1]),
     ]
     print("$", " ".join(args))
     subprocess.check_call(args)
