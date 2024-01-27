@@ -10,6 +10,8 @@ Some related issues:
 https://github.com/ImageMagick/ImageMagick/issues/6377
 https://github.com/libvips/libvips/issues/3799
 
+Demo: https://github.com/albertz/playground/wiki/HDR-demo
+
 Note: Alternatives to Ultra HDR are: AVIF
 """
 
@@ -19,6 +21,7 @@ import os
 import shutil
 import subprocess
 import struct
+import atexit
 
 
 ultra_hdr_app_path: Optional[str] = None
@@ -36,8 +39,8 @@ def main():
 
     yuv_file = args.output_file + ".yuv"
     _make_yuv_p010(args.input_file, yuv_file)
+    atexit.register(os.remove, yuv_file)  # yuv file not needed anymore
     _make_jpeg_from_yuv_p010(args.input_file, yuv_file, args.output_file)
-    os.remove(yuv_file)  # not needed anymore
 
 
 def _setup_paths():
@@ -85,7 +88,7 @@ def _get_size_from_jpeg(input_jpeg_file: str) -> Tuple[int, int]:
     with open(input_jpeg_file, "rb") as fhandle:
         size = 2
         ftype = 0
-        while not 0xC0 <= ftype <= 0xCF:
+        while not 0xC0 <= ftype <= 0xCF or ftype in (0xC4, 0xC8, 0xCC):
             fhandle.seek(size, 1)
             byte = fhandle.read(1)
             while ord(byte) == 0xFF:
