@@ -3,6 +3,46 @@
 """
 Play around with Ultra HDR (embedded in JPEG).
 
+High-dynamic range (HDR) is to extend the usual color range
+(Standard Dynamic Range (SDR))
+and usually also extends the common 8bit color depth to 10bit or more.
+https://en.wikipedia.org/wiki/High_dynamic_range
+
+Some modern displays (~2021) (e.g. MacBook M1, some OLED TVs) support HDR,
+but it is still a rare feature.
+
+There are multiple formats for HDR images, e.g.:
+- OpenEXR
+- AVIF
+- JPEG XT (https://en.wikipedia.org/wiki/JPEG_XT)
+  embedded in JPEG XL (https://en.wikipedia.org/wiki/JPEG_XL)
+- JPEG XR (https://en.wikipedia.org/wiki/JPEG_XR)
+- Ultra HDR (used here)
+  embedded in standard JPEG
+
+Ultra HDR uses the JPEG multi-picture format (MPF).
+It stores the normal SDR JPEG image as the first image,
+so all existing JPEG decoders can display the normal image.
+Then it stores a HDR gain map embedded in MPF
+which can be used to reconstruct the HDR image.
+
+Currently, (end of 2023), Google Chrome stable (end of 2023) supports this format.
+
+Currently, (end of 2023), Google Pixel phones can capture Ultra HDR images
+(e.g. when they use night mode).
+
+About the Ultra HDR format:
+https://developer.android.com/media/platform/hdr-image-format
+
+> This document defines the behavior of a new file format
+> that encodes a logarithmic range gain map image in a JPEG image file.
+> Legacy readers that don't support the new format read and display
+> the conventional low dynamic range image from the image file.
+> Readers that support the format combine the primary image
+> with the gain map and render a high dynamic range image on compatible displays.
+
+To use the simple script here, for preparation:
+
 * First, build this: https://github.com/google/libultrahdr
 * Make sure FFMpeg is installed
 
