@@ -27,9 +27,14 @@ Then it stores a HDR gain map embedded in MPF
 which can be used to reconstruct the HDR image.
 
 Currently, (end of 2023), Google Chrome stable (end of 2023) supports this format.
+(Another alternative in Google Chrome is AVIF.)
 
 Currently, (end of 2023), Google Pixel phones can capture Ultra HDR images
 (e.g. when they use night mode).
+
+(Note, many websites, e.g. Twitter, will reencode JPEGs after you upload them,
+and often they don't support Ultra HDR yet, so then it will be lost,
+and you will just see the normal SDR JPEG image.)
 
 About the Ultra HDR format:
 https://developer.android.com/media/platform/hdr-image-format
@@ -46,13 +51,17 @@ To use the simple script here, for preparation:
 * First, build this: https://github.com/google/libultrahdr
 * Make sure FFMpeg is installed
 
+This script does nothing fancy: It just upscales the input JPEG color range
+(FFmpeg does that here currently) and then encodes the HDR gain map
+using Google's Ultra HDR encoder (libultrahdr).
+The effect is that the image will display brighter on HDR displays.
+
+Demo: https://github.com/albertz/playground/wiki/HDR-demo
+
 Some related issues:
 https://github.com/ImageMagick/ImageMagick/issues/6377
 https://github.com/libvips/libvips/issues/3799
 
-Demo: https://github.com/albertz/playground/wiki/HDR-demo
-
-Note: Alternatives to Ultra HDR are: AVIF
 """
 
 from typing import Optional, Tuple
