@@ -23,6 +23,9 @@ def main():
 def _proc_stat_worker():
     while True:
         proc = psutil.Process()
+        # Via psutil ppid_map(), this will iterate through all procs of the system,
+        # and check /proc/<pid>/stat for each proc.
+        # We had cases where this hangs, and it might be because of our own subprocess.
         proc.children()
 
 
