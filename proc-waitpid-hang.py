@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Test hang
+https://github.com/rwth-i6/sisyphus/issues/176#issuecomment-1920997179
 """
 
 import sys
