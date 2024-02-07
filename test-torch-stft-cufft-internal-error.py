@@ -37,6 +37,7 @@ def main():
     torch.manual_seed(1337)
     step = 0
     count_oom = 0
+    count_runtime_error = 0
     while True:
         try:
             n_batch = torch.randint(1, 100, ())
@@ -46,6 +47,12 @@ def main():
             n_time = torch.randint(max_time // 100, max_time, ())
             x = torch.randn(n_batch, n_time, device=dev)
             print("x:", x)
+            step += 1
+        except torch.cuda.OutOfMemoryError:
+            count_oom += 1
+            continue
+
+        try:
             y = torch.stft(
                 x,
                 n_fft=512,
@@ -58,17 +65,14 @@ def main():
             )
             y = y.real
             print("y:", y)
-            step += 1
         except torch.cuda.OutOfMemoryError:
             count_oom += 1
-            continue
         except RuntimeError as exc:
             print("RuntimeError:", exc)
-            print(f"(step {step}, count OOM {count_oom})")
-            sys.exit(1)
-        except KeyboardInterrupt:
-            print("KeyboardInterrupt")
-            sys.exit(1)
+            count_runtime_error += 1
+            print(f"(step {step}, count OOM {count_oom}, count RuntimeError {count_runtime_error})")
+            if count_runtime_error > 0:
+                sys.exit(1)
 
 
 def human_size(n, factor=1000, frac=0.8, prec=1):
@@ -109,4 +113,8 @@ if __name__ == "__main__":
     except ImportError:
         pass
 
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+        sys.exit(1)
