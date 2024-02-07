@@ -3,6 +3,7 @@
 Try to reproduce:
 RuntimeError: cuFFT error: CUFFT_INTERNAL_ERROR
 https://github.com/rwth-i6/returnn/issues/1465
+https://github.com/pytorch/pytorch/issues/119420
 """
 
 import torch
