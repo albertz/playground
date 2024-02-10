@@ -15,4 +15,5 @@
 *.dummy
 *.log
 *.onnx
+.uuid
 /.idea
