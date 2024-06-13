@@ -8,7 +8,7 @@ import subprocess
 def main():
     while True:
         try:
-            subprocess.run(["cat", "/dev/zero"], timeout=0.1)
+            subprocess.run(["cat", "/dev/zero"], timeout=0.01)
         except subprocess.TimeoutExpired:
             print("TimeoutExpired")
 
