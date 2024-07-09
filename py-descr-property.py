@@ -1,5 +1,5 @@
 def f(*args):
-	print "f", args
+	print("f", args)
 	return "f-return"
 	
 class A:
@@ -9,7 +9,7 @@ class A:
 	x = property(f)
 
 a = A()
-print "a.x:", a.x
+print("a.x:", a.x)
 
 
 # ---
@@ -25,8 +25,8 @@ class B:
 	x = Property("x", "test", fget = f)
 
 b = B()
-print "b.x:", b.x
-print b.__class__.x
+print("b.x:", b.x)
+print(b.__class__.x)
 
 
 # ---
@@ -41,12 +41,12 @@ class initBy(property):
 		return self.value
 
 def initFuncTest():
-	print "initFuncTest"
+	print("initFuncTest")
 	return "x"
 	
 class C:
 	x = initBy(initFuncTest)
 
 c = C()
-print "c.x:", c.x
-print "c.x:", c.x
+print("c.x:", c.x)
+print("c.x:", c.x)
