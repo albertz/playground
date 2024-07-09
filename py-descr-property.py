@@ -1,3 +1,10 @@
+"""
+Playing around with descriptors and properties.
+
+https://docs.python.org/3/howto/descriptor.html
+"""
+
+
 def f(*args):
     print("f", args)
     return "f-return"
@@ -13,6 +20,10 @@ class A:
 a = A()
 print("a.x:", a.x)
 
+
+# This cannot work: Descriptors are only searched in the class, not in the instance.
+a.y = property(f)
+print("a.y:", a.y)
 
 # ---
 
