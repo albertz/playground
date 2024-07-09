@@ -39,25 +39,25 @@ print(b.__class__.x)
 # ---
 
 
-class initBy(property):
-    def __init__(self, initFunc):
-        property.__init__(self, fget=self.fget)
-        self.initFunc = initFunc
+class InitBy(property):
+    def __init__(self, init_func):
+        super().__init__(fget=self.fget)
+        self.init_func = init_func
 
     def fget(self, inst):
         if hasattr(self, "value"):
             return self.value
-        self.value = self.initFunc()
+        self.value = self.init_func()
         return self.value
 
 
-def initFuncTest():
-    print("initFuncTest")
+def init_func_test():
+    print("init_func_test")
     return "x"
 
 
 class C:
-    x = initBy(initFuncTest)
+    x = InitBy(init_func_test)
 
 
 c = C()
