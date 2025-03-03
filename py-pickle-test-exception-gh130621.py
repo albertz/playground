@@ -7,6 +7,7 @@ https://discuss.python.org/t/pickle-exception-handling-could-state-object-path/8
 
 import argparse
 import pickle
+import pickletools
 import sys
 
 arg_parser = argparse.ArgumentParser()
@@ -37,6 +38,8 @@ obj = MyClass(42)
 d = {"a": {"b": {"c": obj}, "d": obj}}
 
 s = pickle.dumps(d)
+pickletools.dis(s)
+# Maybe also https://doc.sagemath.org/html/en/reference/misc/sage/misc/explain_pickle.html
 d2 = pickle.loads(s)
 
 obj2 = d2["a"]["b"]["c"]
