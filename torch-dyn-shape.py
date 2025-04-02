@@ -4,6 +4,7 @@ Extract dyn shape
 
 import torch
 import sympy
+from sympy.utilities.lambdify import lambdify
 
 # noinspection PyProtectedMember
 from torch._subclasses.fake_tensor import FakeTensorMode
@@ -33,5 +34,12 @@ with FakeTensorMode(allow_non_fake_inputs=True, shape_env=shape_env) as fake_ten
     print(f"{out_size.node.expr=} {type(out_size.node.expr)=}")
     out_sym = out_size.node.expr
     assert isinstance(out_sym, sympy.Expr)
-    for t in [1, 100, 45, 1000]:
-        print(f"out size for time={t}: {out_sym.xreplace({time_sym: t})}")
+
+for t in [1, 100, 45, 1000]:
+    print(f"out size for time={t}: {out_sym.xreplace({time_sym: t})}")
+
+out_sym_lambda = lambdify(time_sym, out_sym)
+print(f"{out_sym_lambda=}")
+
+ts = torch.tensor([1, 100, 45, 1000, 13])
+print(f"out size for time={ts}: {out_sym_lambda(ts)}")
